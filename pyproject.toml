@@ -1,0 +1,385 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slickbet"
+version = "0.1.0"
+description = "Soccer betting screener using Livescore API"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "SlickBet Team" }]
+keywords = [
+    "soccer",
+    "betting",
+    "screener",
+    "livescore",
+    "football",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment",
+]
+
+dependencies = [
+    "requests>=2.28.0,<3.0.0",
+    "reportlab>=4.0.0,<5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "assertpy>=1.1",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "types-requests>=2.28.0",
+    "poethepoet>=0.24.0",
+]
+
+[project.scripts]
+slickbet = "slickbet.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/slickbet/slickbet"
+Repository = "https://github.com/slickbet/slickbet"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/slickbet"]
+
+# ============================================================================
+# poethepoet - Task Runner
+# ============================================================================
+[tool.poe.tasks]
+
+# Run the betting screener
+[tool.poe.tasks.run]
+shell = "slickbet $@"
+help = "Run the betting screener for tomorrow's games"
+
+[tool.poe.tasks.run-top]
+shell = "slickbet --top ${k} $@"
+args = [
+    { name = "k", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener and show top K betting opportunities"
+
+[tool.poe.tasks.run-date]
+shell = "slickbet --date ${date} $@"
+args = [
+    { name = "date", positional = true, required = true },
+]
+help = "Run screener for a specific date (YYYY-MM-DD)"
+
+[tool.poe.tasks.run-days]
+shell = "slickbet --days ${days} --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "20", options = ["--top", "-k"] },
+]
+help = "Run screener for the next N days (default: 7)"
+
+[tool.poe.tasks.run-week]
+shell = "slickbet --days 7 --top 20 $@"
+help = "Run screener for the next 7 days, show top 20"
+
+[tool.poe.tasks.run-major]
+shell = "slickbet --major-only --top ${top} $@"
+args = [
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for tomorrow's major league games only"
+
+[tool.poe.tasks.run-major-week]
+shell = "slickbet --days 7 --major-only --top ${top} $@"
+args = [
+    { name = "top", default = "20", options = ["--top", "-k"] },
+]
+help = "Run screener for next 7 days, major leagues only"
+
+# All leagues (Major + Persian Gulf) screener tasks
+[tool.poe.tasks.run-all]
+shell = "slickbet --days ${days} --all-leagues --top ${top} ${pdf:+--pdf }${pdf}"
+args = [
+    { name = "days", default = "3", options = ["--days", "-d"] },
+    { name = "top", default = "20", options = ["--top", "-k"] },
+    { name = "pdf", default = "", options = ["--pdf"] },
+]
+help = "Run screener for ALL leagues (Major European + Persian Gulf)"
+
+[tool.poe.tasks.run-all-week]
+shell = "slickbet --days 7 --all-leagues --top ${top} $@"
+args = [
+    { name = "top", default = "30", options = ["--top", "-k"] },
+]
+help = "Run screener for next 7 days, ALL leagues"
+
+[tool.poe.tasks.run-pl]
+shell = "slickbet --days ${days} --league 2 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Premier League only"
+
+[tool.poe.tasks.run-bundesliga]
+shell = "slickbet --days ${days} --league 1 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Bundesliga only"
+
+[tool.poe.tasks.run-laliga]
+shell = "slickbet --days ${days} --league 3 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for La Liga only"
+
+[tool.poe.tasks.run-seriea]
+shell = "slickbet --days ${days} --league 4 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Serie A only"
+
+[tool.poe.tasks.run-ligue1]
+shell = "slickbet --days ${days} --league 5 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Ligue 1 only"
+
+# Persian Gulf leagues screener tasks
+[tool.poe.tasks.run-gulf]
+shell = "slickbet --days ${days} --gulf-only --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Persian Gulf leagues (Saudi, Qatar, UAE)"
+
+[tool.poe.tasks.run-saudi]
+shell = "slickbet --days ${days} --league 313 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Saudi Pro League only"
+
+[tool.poe.tasks.run-qatar]
+shell = "slickbet --days ${days} --league 305 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for Qatar Stars League only"
+
+[tool.poe.tasks.run-uae]
+shell = "slickbet --days ${days} --league 354 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = ["--days", "-d"] },
+    { name = "top", default = "10", options = ["--top", "-k"] },
+]
+help = "Run screener for UAE Pro League only"
+
+# Backtesting tasks
+[tool.poe.tasks.backtest]
+shell = "slickbet backtest $@"
+help = "Backtest model on Premier League (4 weeks)"
+
+[tool.poe.tasks.backtest-bundesliga]
+shell = "slickbet backtest --competition 1 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on Bundesliga (Germany) for N weeks"
+
+[tool.poe.tasks.backtest-pl]
+shell = "slickbet backtest --competition 2 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on Premier League (England) for N weeks"
+
+[tool.poe.tasks.backtest-liga]
+shell = "slickbet backtest --competition 3 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on La Liga (Spain) for N weeks"
+
+[tool.poe.tasks.backtest-seriea]
+shell = "slickbet backtest --competition 4 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on Serie A (Italy) for N weeks"
+
+[tool.poe.tasks.backtest-ligue1]
+shell = "slickbet backtest --competition 5 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on Ligue 1 (France) for N weeks"
+
+# Persian Gulf leagues backtest tasks
+[tool.poe.tasks.backtest-saudi]
+shell = "slickbet backtest --competition 313 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on Saudi Pro League for N weeks"
+
+[tool.poe.tasks.backtest-qatar]
+shell = "slickbet backtest --competition 305 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on Qatar Stars League for N weeks"
+
+[tool.poe.tasks.backtest-uae]
+shell = "slickbet backtest --competition 354 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on UAE Pro League for N weeks"
+
+[tool.poe.tasks.backtest-all]
+shell = "slickbet backtest-all --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on ALL major leagues with aggregated results"
+
+[tool.poe.tasks.backtest-gulf]
+shell = "slickbet backtest-all --gulf-only --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on ALL Persian Gulf leagues with aggregated results"
+
+[tool.poe.tasks.backtest-all-global]
+shell = "slickbet backtest-all --include-gulf --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+]
+help = "Backtest on ALL leagues (Major + Persian Gulf) with aggregated results"
+
+[tool.poe.tasks.backtest-json]
+cmd = "slickbet backtest --json"
+help = "Backtest with JSON output"
+
+# Development tasks
+[tool.poe.tasks.lint]
+cmd = "ruff check src/"
+help = "Run linter on source code"
+
+[tool.poe.tasks.lint-fix]
+cmd = "ruff check src/ --fix"
+help = "Run linter and auto-fix issues"
+
+[tool.poe.tasks.format]
+cmd = "ruff format src/"
+help = "Format source code"
+
+[tool.poe.tasks.format-check]
+cmd = "ruff format src/ --check"
+help = "Check code formatting without making changes"
+
+[tool.poe.tasks.typecheck]
+cmd = "mypy src/"
+help = "Run type checker"
+
+[tool.poe.tasks.test]
+cmd = "pytest"
+help = "Run tests"
+
+[tool.poe.tasks.test-cov]
+cmd = "pytest --cov=slickbet --cov-report=term-missing"
+help = "Run tests with coverage report"
+
+# Combined tasks
+[tool.poe.tasks.check]
+sequence = [
+    "lint",
+    "format-check",
+    "typecheck",
+]
+help = "Run all code quality checks"
+
+[tool.poe.tasks.fix]
+sequence = ["lint-fix", "format"]
+help = "Fix linting issues and format code"
+
+[tool.poe.tasks.dev]
+sequence = ["fix", "test"]
+help = "Fix code and run tests"
+
+# ============================================================================
+# Ruff - Linter & Formatter
+# ============================================================================
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["slickbet"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ============================================================================
+# MyPy - Type Checker
+# ============================================================================
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = "requests.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "assertpy.*"
+ignore_missing_imports = true
+
+# ============================================================================
+# Pytest
+# ============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"

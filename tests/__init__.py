@@ -1,0 +1,1 @@
+"""SlickBet test suite."""
