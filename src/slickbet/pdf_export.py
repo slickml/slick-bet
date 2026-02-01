@@ -5,6 +5,7 @@ PDF export functionality for screener and backtest results.
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
@@ -20,7 +21,60 @@ from reportlab.platypus import (
 )
 
 from slickbet.backtest import BacktestResults
-from slickbet.screener import BetPrediction, ScreenerResult
+from slickbet.screener import BetPrediction, ScreenerResult, to_central_time
+
+
+def get_pdf_output_path(filename: str, output_path: Optional[str] = None) -> str:
+    """
+    Get the full path for PDF output, creating directory if needed.
+
+    Args:
+        filename: Default filename if output_path is None
+        output_path: Optional custom output path (can be file or directory)
+
+    Returns:
+        Full path to the PDF file
+    """
+    # Treat empty string as None to use default directory
+    if output_path is None or output_path == "":
+        # Use default directory: assets/predictions
+        default_dir = Path("assets/predictions")
+        default_dir.mkdir(parents=True, exist_ok=True)
+        output_path = default_dir / filename
+    else:
+        # Custom path provided
+        custom_path = Path(output_path)
+
+        # If it's an absolute path, use it as-is
+        if custom_path.is_absolute():
+            output_path = custom_path
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Check if it's an existing directory
+        elif custom_path.exists() and custom_path.is_dir():
+            # It's a directory, append filename
+            output_path = custom_path / filename
+        else:
+            # It's a relative filename/path
+            # Check if it has directory components (more than just a filename)
+            if len(custom_path.parts) > 1:
+                # It has directory components, use as-is (relative to current dir)
+                output_path = custom_path
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                # It's just a filename - put it in default directory
+                default_dir = Path("assets/predictions")
+                default_dir.mkdir(parents=True, exist_ok=True)
+                output_path = default_dir / custom_path.name
+
+    # Ensure .pdf extension
+    output_path = Path(output_path)
+    if output_path.suffix.lower() != ".pdf":
+        output_path = output_path.with_suffix(".pdf")
+
+    # Create parent directory if it doesn't exist
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    return str(output_path)
 
 
 def export_screener_to_pdf(
@@ -39,13 +93,14 @@ def export_screener_to_pdf(
     Returns:
         Path to the generated PDF file
     """
-    if output_path is None:
+    # Treat empty string as None to use default directory
+    if output_path is None or output_path == "":
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = f"slickbet_screener_{timestamp}.pdf"
-
-    # Ensure .pdf extension
-    if not output_path.endswith(".pdf"):
-        output_path += ".pdf"
+        filename = f"slickbet_screener_{timestamp}.pdf"
+        output_path = get_pdf_output_path(filename)
+    else:
+        # Custom path provided - use it directly
+        output_path = get_pdf_output_path("slickbet_screener.pdf", output_path)
 
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     story = []
@@ -92,7 +147,7 @@ def export_screener_to_pdf(
         ["Away Win Predictions", str(len(result.get_away_wins()))],
         [
             "Screened At",
-            result.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            to_central_time(result.timestamp).strftime("%Y-%m-%d %H:%M:%S %Z"),
         ],
     ]
 
@@ -108,7 +163,12 @@ def export_screener_to_pdf(
                 ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
                 ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#ecf0f1")),
                 ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#f8f9fa")],
+                ),
             ]
         )
     )
@@ -117,10 +177,10 @@ def export_screener_to_pdf(
 
     # Predictions Section
     if predictions:
-        story.append(Paragraph(f"🎯 Top {len(predictions)} Betting Opportunities", heading_style))
-        story.append(Spacer(1, 0.2 * inch))
-
         for i, pred in enumerate(predictions, 1):
+            # Start each recommendation on a new page
+            story.append(PageBreak())
+
             match = pred.match
             outcome = pred.recommended_outcome
 
@@ -156,12 +216,15 @@ def export_screener_to_pdf(
             story.append(Paragraph(match_title, subheading_style))
             story.append(
                 Paragraph(
-                    f"<b>{match.competition}</b> ({match.country}) • {match.kickoff_time.strftime('%Y-%m-%d %H:%M')}",
+                    f"<b>{match.competition}</b> ({match.country}) • {to_central_time(match.kickoff_time).strftime('%Y-%m-%d %H:%M %Z')}",
                     styles["Normal"],
                 )
             )
             story.append(
-                Paragraph(f"<b>Grade:</b> <font color='{grade_color.hexval()}'>{grade}</font>", styles["Normal"])
+                Paragraph(
+                    f"<b>Grade:</b> <font color='{grade_color.hexval()}'>{grade}</font>",
+                    styles["Normal"],
+                )
             )
             story.append(Spacer(1, 0.1 * inch))
 
@@ -180,14 +243,30 @@ def export_screener_to_pdf(
                     bet_desc = "Either team wins (no draw)"
                     short_bet = "12"
 
-                story.append(Paragraph(f"<b>⭐ Recommended Bet: {short_bet}</b>", styles["Normal"]))
+                story.append(
+                    Paragraph(
+                        f"<b>⭐ Recommended Bet: {short_bet}</b>", styles["Normal"]
+                    )
+                )
                 story.append(Paragraph(f"   {bet_desc}", styles["Normal"]))
-                story.append(Paragraph(f"   Probability: <b>{best_prob:.1%}</b>", styles["Normal"]))
+                story.append(
+                    Paragraph(
+                        f"   Probability: <b>{best_prob:.1%}</b>", styles["Normal"]
+                    )
+                )
                 story.append(Spacer(1, 0.05 * inch))
 
             # Win Bet
-            story.append(Paragraph(f"<b>💰 Win Bet:</b> {bet_on.upper()} TO WIN", styles["Normal"]))
-            story.append(Paragraph(f"   Probability: <b>{pred.probability:.1%}</b>", styles["Normal"]))
+            story.append(
+                Paragraph(
+                    f"<b>💰 Win Bet:</b> {bet_on.upper()} TO WIN", styles["Normal"]
+                )
+            )
+            story.append(
+                Paragraph(
+                    f"   Probability: <b>{pred.probability:.1%}</b>", styles["Normal"]
+                )
+            )
             story.append(Spacer(1, 0.1 * inch))
 
             # Analysis Breakdown
@@ -202,11 +281,15 @@ def export_screener_to_pdf(
             if pred.odds_score != 0:
                 analysis_data.append(["Odds Score", f"{pred.odds_score:+.2f}"])
             if pred.goal_score != 0:
-                analysis_data.append(["Goals (Attack/Defense)", f"{pred.goal_score:+.2f}"])
+                analysis_data.append(
+                    ["Goals (Attack/Defense)", f"{pred.goal_score:+.2f}"]
+                )
             if pred.venue_form_score != 0:
                 analysis_data.append(["Venue Form", f"{pred.venue_form_score:+.2f}"])
             if pred.defense_score != 0:
-                analysis_data.append(["Defense (Clean Sheets)", f"{pred.defense_score:+.2f}"])
+                analysis_data.append(
+                    ["Defense (Clean Sheets)", f"{pred.defense_score:+.2f}"]
+                )
             if pred.momentum_score != 0:
                 analysis_data.append(["Momentum", f"{pred.momentum_score:+.2f}"])
 
@@ -233,11 +316,17 @@ def export_screener_to_pdf(
                 story.append(Paragraph("<b>📝 Key Insights:</b>", styles["Normal"]))
                 for reason in key_reasons:
                     # Remove emojis for cleaner PDF
-                    clean_reason = reason.replace("🔥", "").replace("✅", "").replace("👍", "").replace("⚠️", "").strip()
+                    clean_reason = (
+                        reason.replace("🔥", "")
+                        .replace("✅", "")
+                        .replace("👍", "")
+                        .replace("⚠️", "")
+                        .strip()
+                    )
                     story.append(Paragraph(f"   • {clean_reason}", styles["Normal"]))
 
-            story.append(Spacer(1, 0.2 * inch))
-            story.append(PageBreak())
+            # Each recommendation ends here, next one will start on new page
+            # (PageBreak is added at the start of each loop iteration)
 
     # Footer note
     story.append(Spacer(1, 0.2 * inch))
@@ -268,13 +357,14 @@ def export_backtest_to_pdf(
     Returns:
         Path to the generated PDF file
     """
-    if output_path is None:
+    # Treat empty string as None to use default directory
+    if output_path is None or output_path == "":
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = f"slickbet_backtest_{timestamp}.pdf"
-
-    # Ensure .pdf extension
-    if not output_path.endswith(".pdf"):
-        output_path += ".pdf"
+        filename = f"slickbet_backtest_{timestamp}.pdf"
+        output_path = get_pdf_output_path(filename)
+    else:
+        # Custom path provided - use it directly
+        output_path = get_pdf_output_path("slickbet_backtest.pdf", output_path)
 
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     story = []
@@ -359,7 +449,12 @@ def export_backtest_to_pdf(
                 ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
                 ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#ecf0f1")),
                 ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#f8f9fa")],
+                ),
             ]
         )
     )
@@ -389,7 +484,9 @@ def export_backtest_to_pdf(
         ],
     ]
 
-    home_away_table = Table(home_away_data, colWidths=[1.5 * inch, 1 * inch, 1 * inch, 1.5 * inch])
+    home_away_table = Table(
+        home_away_data, colWidths=[1.5 * inch, 1 * inch, 1 * inch, 1.5 * inch]
+    )
     home_away_table.setStyle(
         TableStyle(
             [
@@ -460,7 +557,9 @@ def export_backtest_to_pdf(
         ],
     ]
 
-    confidence_table = Table(confidence_data, colWidths=[2 * inch, 1 * inch, 1.2 * inch, 1.8 * inch])
+    confidence_table = Table(
+        confidence_data, colWidths=[2 * inch, 1 * inch, 1.2 * inch, 1.8 * inch]
+    )
     confidence_table.setStyle(
         TableStyle(
             [
@@ -511,13 +610,14 @@ def export_backtest_all_to_pdf(
     Returns:
         Path to the generated PDF file
     """
-    if output_path is None:
+    # Treat empty string as None to use default directory
+    if output_path is None or output_path == "":
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = f"slickbet_backtest_all_{timestamp}.pdf"
-
-    # Ensure .pdf extension
-    if not output_path.endswith(".pdf"):
-        output_path += ".pdf"
+        filename = f"slickbet_backtest_all_{timestamp}.pdf"
+        output_path = get_pdf_output_path(filename)
+    else:
+        # Custom path provided - use it directly
+        output_path = get_pdf_output_path("slickbet_backtest_all.pdf", output_path)
 
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     story = []
@@ -607,7 +707,12 @@ def export_backtest_all_to_pdf(
                 ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
                 ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#ecf0f1")),
                 ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#f8f9fa")],
+                ),
             ]
         )
     )
@@ -666,7 +771,10 @@ def export_backtest_all_to_pdf(
             ]
         )
 
-    league_table = Table(league_data, colWidths=[2.5 * inch, 0.8 * inch, 0.8 * inch, 1 * inch, 0.9 * inch])
+    league_table = Table(
+        league_data,
+        colWidths=[2.5 * inch, 0.8 * inch, 0.8 * inch, 1 * inch, 0.9 * inch],
+    )
     league_table.setStyle(
         TableStyle(
             [
@@ -678,7 +786,12 @@ def export_backtest_all_to_pdf(
                 ("FONTSIZE", (0, 1), (-1, -1), 9),
                 ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#ecf0f1")),
                 ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#bdc3c7")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#f8f9fa")],
+                ),
             ]
         )
     )

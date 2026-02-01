@@ -5,6 +5,7 @@ Betting screener for finding and ranking soccer betting opportunities.
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from slickbet.api import LivescoreAPIError, LivescoreClient, Match
 from slickbet.model import BetOutcome, BetPrediction, BettingModel
@@ -678,6 +679,25 @@ class BettingScreener:
         return enriched
 
 
+def to_central_time(dt: datetime) -> datetime:
+    """
+    Convert a datetime to Central Time (CST/CDT).
+
+    Args:
+        dt: Datetime object (assumed to be naive/UTC)
+
+    Returns:
+        Datetime object in Central Time
+    """
+    # If datetime is naive, assume it's UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+    # Convert to Central Time
+    central_tz = ZoneInfo("America/Chicago")
+    return dt.astimezone(central_tz)
+
+
 def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
     """
     Format a prediction for display.
@@ -734,7 +754,9 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
 
     lines.append(f"🏟️  {home_display} vs {away_display}  [{grade}]")
     lines.append(f"🏆  {match.competition} ({match.country})")
-    lines.append(f"⏰  {match.kickoff_time.strftime('%Y-%m-%d %H:%M')}")
+    # Convert to Central Time for display
+    central_time = to_central_time(match.kickoff_time)
+    lines.append(f"⏰  {central_time.strftime('%Y-%m-%d %H:%M %Z')}")
     lines.append("")
 
     # PRIMARY: Double Chance Recommendation (shown first!)
@@ -851,7 +873,7 @@ def format_summary(result: ScreenerResult) -> str:
         f"✅ Actionable predictions: {len(result.predictions)}",
         f"🏠 Home win predictions: {len(result.get_home_wins())}",
         f"✈️  Away win predictions: {len(result.get_away_wins())}",
-        f"⏰ Screened at: {result.timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"⏰ Screened at: {to_central_time(result.timestamp).strftime('%Y-%m-%d %H:%M:%S %Z')}",
         "=" * 60,
     ]
 
