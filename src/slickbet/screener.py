@@ -181,9 +181,7 @@ class ScreenerResult:
     @property
     def top_bets(self) -> list[BetPrediction]:
         """Get predictions sorted by best double chance probability (highest first)."""
-        return sorted(
-            self.predictions, key=lambda p: get_best_double_chance_prob(p), reverse=True
-        )
+        return sorted(self.predictions, key=lambda p: get_best_double_chance_prob(p), reverse=True)
 
     @property
     def top_bets_by_win(self) -> list[BetPrediction]:
@@ -196,15 +194,11 @@ class ScreenerResult:
 
     def get_home_wins(self) -> list[BetPrediction]:
         """Get all predictions recommending home win."""
-        return [
-            p for p in self.predictions if p.recommended_outcome == BetOutcome.HOME_WIN
-        ]
+        return [p for p in self.predictions if p.recommended_outcome == BetOutcome.HOME_WIN]
 
     def get_away_wins(self) -> list[BetPrediction]:
         """Get all predictions recommending away win."""
-        return [
-            p for p in self.predictions if p.recommended_outcome == BetOutcome.AWAY_WIN
-        ]
+        return [p for p in self.predictions if p.recommended_outcome == BetOutcome.AWAY_WIN]
 
 
 class BettingScreener:
@@ -346,9 +340,7 @@ class BettingScreener:
 
         if competition_ids:
             # Use optimized endpoint with competition_id filtering
-            return self.client.get_fixtures_list(
-                date=date, competition_ids=competition_ids
-            )
+            return self.client.get_fixtures_list(date=date, competition_ids=competition_ids)
 
         # Fall back to regular endpoint for other filters
         return self.client.get_fixtures_by_date(date)
@@ -440,9 +432,7 @@ class BettingScreener:
             filtered = [
                 m
                 for m in filtered
-                if self._is_major_league(m)
-                or self._is_minor_league(m)
-                or self._is_gulf_league(m)
+                if self._is_major_league(m) or self._is_minor_league(m) or self._is_gulf_league(m)
             ]
             if filtered:
                 major = [m for m in filtered if self._is_major_league(m)]
@@ -456,9 +446,7 @@ class BettingScreener:
 
         # Filter by specific competition IDs
         elif self.config.competition_ids:
-            filtered = [
-                m for m in filtered if m.competition_id in self.config.competition_ids
-            ]
+            filtered = [m for m in filtered if m.competition_id in self.config.competition_ids]
 
         # Filter by countries
         if self.config.countries:
@@ -668,25 +656,13 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
         # Show all double chance options
         lines.append("🎲 ALL DOUBLE CHANCE OPTIONS:")
         home_or_draw_emoji = (
-            "🟢"
-            if dc.home_or_draw_prob >= 0.70
-            else "🟡"
-            if dc.home_or_draw_prob >= 0.60
-            else "🔴"
+            "🟢" if dc.home_or_draw_prob >= 0.70 else "🟡" if dc.home_or_draw_prob >= 0.60 else "🔴"
         )
         away_or_draw_emoji = (
-            "🟢"
-            if dc.away_or_draw_prob >= 0.70
-            else "🟡"
-            if dc.away_or_draw_prob >= 0.60
-            else "🔴"
+            "🟢" if dc.away_or_draw_prob >= 0.70 else "🟡" if dc.away_or_draw_prob >= 0.60 else "🔴"
         )
         no_draw_emoji = (
-            "🟢"
-            if dc.no_draw_prob >= 0.75
-            else "🟡"
-            if dc.no_draw_prob >= 0.65
-            else "🔴"
+            "🟢" if dc.no_draw_prob >= 0.75 else "🟡" if dc.no_draw_prob >= 0.65 else "🔴"
         )
 
         lines.append(
@@ -724,9 +700,7 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
     if prediction.defense_score != 0:
         lines.append(f"   • Defense (Clean Sheets): {prediction.defense_score:+.2f}")
     if prediction.momentum_score != 0:
-        lines.append(
-            f"   • Momentum (HT Lead/Consistency): {prediction.momentum_score:+.2f}"
-        )
+        lines.append(f"   • Momentum (HT Lead/Consistency): {prediction.momentum_score:+.2f}")
     lines.append("")
 
     # Reasoning (filtered for key points)

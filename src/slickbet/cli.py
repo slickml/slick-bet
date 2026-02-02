@@ -62,9 +62,7 @@ Examples:
         """,
     )
 
-    comp_parser.add_argument(
-        "--country", type=str, metavar="NAME", help="Filter by country name"
-    )
+    comp_parser.add_argument("--country", type=str, metavar="NAME", help="Filter by country name")
 
     comp_parser.add_argument(
         "-s", "--search", type=str, metavar="TERM", help="Search competition names"
@@ -133,9 +131,7 @@ Examples:
         help="Minimum probability threshold (default: 0.0 = all)",
     )
 
-    backtest_parser.add_argument(
-        "--json", action="store_true", help="Output results as JSON"
-    )
+    backtest_parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     backtest_parser.add_argument(
         "--pdf",
@@ -321,9 +317,7 @@ Examples:
         help="Only show summary, not individual predictions",
     )
 
-    output_group.add_argument(
-        "--json", action="store_true", help="Output results as JSON"
-    )
+    output_group.add_argument("--json", action="store_true", help="Output results as JSON")
 
     output_group.add_argument(
         "--pdf",
@@ -411,9 +405,7 @@ def run_competitions(args: argparse.Namespace) -> int:
         # Filter by search term if provided
         if args.search:
             search_lower = args.search.lower()
-            competitions = [
-                c for c in competitions if search_lower in c["name"].lower()
-            ]
+            competitions = [c for c in competitions if search_lower in c["name"].lower()]
             print(f"🔍 Searching for: {args.search}")
             print()
 
@@ -502,9 +494,7 @@ def run_backtest(args: argparse.Namespace) -> int:
             output_backtest_json(results)
         elif args.pdf is not None:
             # Export to PDF
-            pdf_path = export_backtest_to_pdf(
-                results, output_path=args.pdf if args.pdf else None
-            )
+            pdf_path = export_backtest_to_pdf(results, output_path=args.pdf if args.pdf else None)
             print(f"✅ PDF exported to: {pdf_path}")
         else:
             print(format_backtest_report(results))
@@ -513,9 +503,7 @@ def run_backtest(args: argparse.Namespace) -> int:
 
     except LivescoreAPIError as e:
         print(f"❌ API Error: {e}")
-        print(
-            "   Check your LIVESCORE_API_KEY and LIVESCORE_API_SECRET environment variables."
-        )
+        print("   Check your LIVESCORE_API_KEY and LIVESCORE_API_SECRET environment variables.")
         return 1
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
@@ -674,14 +662,10 @@ def run_backtest_all(args: argparse.Namespace) -> int:
     print("=" * 70)
     print("📈 LEAGUE COMPARISON")
     print("=" * 70)
-    print(
-        f"{'League':<25} {'Matches':>8} {'Accuracy':>10} {'Excl.Draws':>12} {'Best DC':>10}"
-    )
+    print(f"{'League':<25} {'Matches':>8} {'Accuracy':>10} {'Excl.Draws':>12} {'Best DC':>10}")
     print("-" * 70)
 
-    for league in sorted(
-        league_summaries, key=lambda x: x["accuracy_excl_draws"], reverse=True
-    ):
+    for league in sorted(league_summaries, key=lambda x: x["accuracy_excl_draws"], reverse=True):
         print(
             f"{league['name']:<25} "
             f"{league['total']:>8} "
@@ -813,9 +797,7 @@ def run_screener(args: argparse.Namespace) -> int:
             return p.probability
 
         # Sort by best double chance probability (highest first)
-        predictions = sorted(predictions, key=get_best_dc_prob, reverse=True)[
-            : args.top
-        ]
+        predictions = sorted(predictions, key=get_best_dc_prob, reverse=True)[: args.top]
 
         # Output results
         if args.json:
@@ -847,9 +829,7 @@ def run_screener(args: argparse.Namespace) -> int:
 
     except LivescoreAPIError as e:
         print(f"❌ API Error: {e}")
-        print(
-            "   Check your LIVESCORE_API_KEY and LIVESCORE_API_SECRET environment variables."
-        )
+        print("   Check your LIVESCORE_API_KEY and LIVESCORE_API_SECRET environment variables.")
         return 1
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
@@ -980,9 +960,7 @@ def run_debug(args: argparse.Namespace) -> int:
                                 value = sample[key]
                                 value_type = type(value).__name__
                                 if isinstance(value, dict):
-                                    print(
-                                        f"  {key}: dict with keys {list(value.keys())}"
-                                    )
+                                    print(f"  {key}: dict with keys {list(value.keys())}")
                                 elif isinstance(value, str) and len(value) > 50:
                                     print(f"  {key}: {value_type} = '{value[:50]}...'")
                                 else:
