@@ -5,14 +5,13 @@ A betting screener for soccer games using Livescore API.
 Fetches upcoming matches, analyzes statistics, and ranks
 betting opportunities by win probability.
 
-Usage:
-    from slickbet import BettingScreener
-
-    screener = BettingScreener()
-    result = screener.screen_tomorrow()
-
-    for bet in result.get_top_k(5):
-        print(f"Bet on {bet.match.home_team.name}: {bet.probability:.1%}")
+Examples
+--------
+>>> from slickbet import BettingScreener
+>>> screener = BettingScreener()
+>>> result = screener.screen_tomorrow()
+>>> for bet in result.get_top_k(5):
+...     print(f"Bet on {bet.match.home_team.name}: {bet.probability:.1%}")
 """
 
 __version__ = "0.1.0"

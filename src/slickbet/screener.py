@@ -38,7 +38,7 @@ MINOR_LEAGUE_NAMES = [
 
 # Competition IDs for minor European leagues
 MINOR_LEAGUE_IDS = {
-    "34": "🇧🇪 Belgian Pro League",
+    "68": "🇧🇪 Belgian Pro League",
     "8": "🇵🇹 Primeira Liga",
     "6": "🇹🇷 Super Lig",
     "196": "🇳🇱 Eredivisie",
@@ -69,7 +69,7 @@ ALL_LEAGUE_IDS = {
     "4": "🇮🇹 Serie A",
     "5": "🇫🇷 Ligue 1",
     # Minor European
-    "34": "🇧🇪 Belgian Pro League",
+    "68": "🇧🇪 Belgian Pro League",
     "8": "🇵🇹 Primeira Liga",
     "6": "🇹🇷 Super Lig",
     "196": "🇳🇱 Eredivisie",
@@ -211,11 +211,12 @@ class BettingScreener:
     """
     Main screener class for finding betting opportunities.
 
-    Usage:
-        screener = BettingScreener()
-        result = screener.screen_tomorrow()
-        for bet in result.get_top_k(10):
-            print(bet)
+    Examples
+    --------
+    >>> screener = BettingScreener()
+    >>> result = screener.screen_tomorrow()
+    >>> for bet in result.get_top_k(10):
+    ...     print(bet)
     """
 
     def __init__(
@@ -227,10 +228,14 @@ class BettingScreener:
         """
         Initialize the betting screener.
 
-        Args:
-            config: Screener configuration
-            api_client: Livescore API client (created if not provided)
-            model: Betting model (created if not provided)
+        Parameters
+        ----------
+        config : ScreenerConfig or None, optional
+            Screener configuration
+        api_client : LivescoreClient or None, optional
+            Livescore API client (created if not provided)
+        model : BettingModel or None, optional
+            Betting model (created if not provided)
         """
         self.config = config or ScreenerConfig()
         self.client = api_client or LivescoreClient()
@@ -240,7 +245,9 @@ class BettingScreener:
         """
         Screen tomorrow's matches for betting opportunities.
 
-        Returns:
+        Returns
+        -------
+        ScreenerResult
             ScreenerResult with ranked predictions
         """
         print("🔍 Fetching tomorrow's fixtures...")
@@ -253,10 +260,14 @@ class BettingScreener:
         """
         Screen matches for a specific date.
 
-        Args:
-            date: The date to screen
+        Parameters
+        ----------
+        date : datetime
+            The date to screen
 
-        Returns:
+        Returns
+        -------
+        ScreenerResult
             ScreenerResult with ranked predictions
         """
         print(f"🔍 Fetching fixtures for {date.strftime('%Y-%m-%d')}...")
@@ -269,10 +280,14 @@ class BettingScreener:
         """
         Screen matches for the next N days.
 
-        Args:
-            days: Number of days to screen (default: 7)
+        Parameters
+        ----------
+        days : int, optional
+            Number of days to screen (default: 7)
 
-        Returns:
+        Returns
+        -------
+        ScreenerResult
             ScreenerResult with ranked predictions from all days
         """
         all_matches = []
@@ -298,10 +313,14 @@ class BettingScreener:
         """
         Screen a list of matches and generate predictions.
 
-        Args:
-            matches: List of matches to screen
+        Parameters
+        ----------
+        matches : list[Match]
+            List of matches to screen
 
-        Returns:
+        Returns
+        -------
+        ScreenerResult
             ScreenerResult with ranked predictions
         """
         total_scanned = len(matches)
@@ -752,10 +771,14 @@ def to_central_time(dt: datetime) -> datetime:
     """
     Convert a datetime to Central Time (CST/CDT).
 
-    Args:
-        dt: Datetime object (assumed to be naive/UTC)
+    Parameters
+    ----------
+    dt : datetime
+        Datetime object (assumed to be naive/UTC)
 
-    Returns:
+    Returns
+    -------
+    datetime
         Datetime object in Central Time
     """
     # If datetime is naive, assume it's UTC
@@ -771,11 +794,16 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
     """
     Format a prediction for display.
 
-    Args:
-        prediction: The prediction to format
-        rank: Optional rank number to display
+    Parameters
+    ----------
+    prediction : BetPrediction
+        The prediction to format
+    rank : int, optional
+        Optional rank number to display
 
-    Returns:
+    Returns
+    -------
+    str
         Formatted string representation
     """
     match = prediction.match
@@ -927,10 +955,14 @@ def format_summary(result: ScreenerResult) -> str:
     """
     Format a summary of screener results.
 
-    Args:
-        result: The screener result to summarize
+    Parameters
+    ----------
+    result : ScreenerResult
+        The screener result to summarize
 
-    Returns:
+    Returns
+    -------
+    str
         Formatted summary string
     """
     lines = [

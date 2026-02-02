@@ -157,17 +157,28 @@ class BettingModel:
         """
         Initialize the betting model with custom weights.
 
-        Args:
-            form_weight: Weight for recent form factor
-            position_weight: Weight for league position factor
-            home_weight: Weight for home advantage factor
-            h2h_weight: Weight for head-to-head factor
-            odds_weight: Weight for bookmaker odds factor
-            goals_weight: Weight for attack/defense strength factor
-            venue_form_weight: Weight for home/away specific performance
-            defense_weight: Weight for clean sheet/defensive factor
-            momentum_weight: Weight for first-half dominance and consistency
-            min_confidence: Minimum confidence threshold for recommendations
+        Parameters
+        ----------
+        form_weight : float
+            Weight for recent form factor
+        position_weight : float
+            Weight for league position factor
+        home_weight : float
+            Weight for home advantage factor
+        h2h_weight : float
+            Weight for head-to-head factor
+        odds_weight : float
+            Weight for bookmaker odds factor
+        goals_weight : float
+            Weight for attack/defense strength factor
+        venue_form_weight : float
+            Weight for home/away specific performance
+        defense_weight : float
+            Weight for clean sheet/defensive factor
+        momentum_weight : float
+            Weight for first-half dominance and consistency
+        min_confidence : float
+            Minimum confidence threshold for recommendations
         """
         total = (
             form_weight
@@ -200,10 +211,14 @@ class BettingModel:
         """
         Generate a betting prediction for a match.
 
-        Args:
-            match: Match object with statistics
+        Parameters
+        ----------
+        match : Match
+            Match object with statistics
 
-        Returns:
+        Returns
+        -------
+        BetPrediction
             BetPrediction with probabilities and recommendation
         """
         reasoning = []
@@ -317,8 +332,10 @@ class BettingModel:
         """
         Calculate score based on recent form.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -359,8 +376,10 @@ class BettingModel:
         """
         Calculate score based on league position.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -400,8 +419,10 @@ class BettingModel:
         """
         Calculate score based on home advantage.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: 0.0 to 0.5 (always favors home)
         """
         # Historical home advantage is significant in soccer
@@ -419,8 +440,10 @@ class BettingModel:
         """
         Calculate score based on head-to-head record.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -463,8 +486,10 @@ class BettingModel:
         Bookmaker odds are highly predictive as they incorporate vast amounts
         of information and are adjusted based on betting patterns.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -516,8 +541,10 @@ class BettingModel:
         Teams that score more and concede less are stronger.
         This captures attacking threat and defensive stability.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -570,8 +597,10 @@ class BettingModel:
         Some teams perform very differently at home vs away.
         This captures venue-specific form.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -608,8 +637,10 @@ class BettingModel:
 
         Teams that keep clean sheets regularly are defensively strong.
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -645,8 +676,10 @@ class BettingModel:
         Teams that consistently lead at half-time and don't collapse are more reliable.
         Based on: https://live-score-api.com/documentation/reference/27/getting-teams-last-matches
 
-        Returns:
-            Tuple of (score, reasoning_list)
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home)
         """
         reasons = []
@@ -717,13 +750,20 @@ class BettingModel:
         - Teams have similar PPG (points per game)
         - Teams have high draw rates in recent matches
 
-        Args:
-            composite_score: Overall match score
-            form_score: Form differential
-            position_score: Position differential
-            match: Optional match object for odds and performance data
+        Parameters
+        ----------
+        composite_score : float
+            Overall match score
+        form_score : float
+            Form differential
+        position_score : float
+            Position differential
+        match : Match or None, optional
+            Optional match object for odds and performance data
 
-        Returns:
+        Returns
+        -------
+        float
             Draw risk probability (0.0 to 1.0)
         """
         # Base draw rate in top leagues
@@ -801,10 +841,14 @@ class BettingModel:
         Uses a modified sigmoid function to map scores to probabilities.
         Optimized based on backtest analysis for better calibration.
 
-        Args:
-            score: Composite score (-1 to 1)
+        Parameters
+        ----------
+        score : float
+            Composite score (-1 to 1)
 
-        Returns:
+        Returns
+        -------
+        float
             Probability (0.25 to 0.75, centered at 0.5)
         """
         import math
@@ -828,11 +872,16 @@ class BettingModel:
         """
         Filter predictions by minimum confidence threshold.
 
-        Args:
-            predictions: List of predictions to filter
-            min_confidence: Minimum confidence (defaults to model's threshold)
+        Parameters
+        ----------
+        predictions : list[BetPrediction]
+            List of predictions to filter
+        min_confidence : float or None, optional
+            Minimum confidence (defaults to model's threshold)
 
-        Returns:
+        Returns
+        -------
+        list[BetPrediction]
             Filtered list of predictions
         """
         threshold = min_confidence or self.min_confidence
