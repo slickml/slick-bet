@@ -140,7 +140,7 @@ poe backtest-all-global --weeks=4
 ### Minor European Leagues
 | ID  | League             | Country        |
 | --- | ------------------ | -------------- |
-| 34  | Belgian Pro League | 🇧🇪 Belgium      |
+| 68  | Belgian Pro League | 🇧🇪 Belgium      |
 | 8   | Primeira Liga      | 🇵🇹 Portugal     |
 | 6   | Super Lig          | 🇹🇷 Turkey       |
 | 196 | Eredivisie         | 🇳🇱 Netherlands   |

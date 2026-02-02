@@ -28,11 +28,16 @@ def get_pdf_output_path(filename: str, output_path: Optional[str] = None) -> str
     """
     Get the full path for PDF output, creating directory if needed.
 
-    Args:
-        filename: Default filename if output_path is None
-        output_path: Optional custom output path (can be file or directory)
+    Parameters
+    ----------
+    filename : str
+        Default filename if output_path is None
+    output_path : str or None, optional
+        Optional custom output path (can be file or directory)
 
-    Returns:
+    Returns
+    -------
+    str
         Full path to the PDF file
     """
     # Treat empty string as None to use default directory
@@ -85,12 +90,18 @@ def export_screener_to_pdf(
     """
     Export screener results to a PDF file.
 
-    Args:
-        result: The screener result
-        predictions: List of predictions to include
-        output_path: Optional output file path. If None, generates a filename.
+    Parameters
+    ----------
+    result : ScreenerResult
+        The screener result
+    predictions : list[BetPrediction]
+        List of predictions to include
+    output_path : str or None, optional
+        Optional output file path. If None, generates a filename.
 
-    Returns:
+    Returns
+    -------
+    str
         Path to the generated PDF file
     """
     # Treat empty string as None to use default directory
@@ -391,11 +402,16 @@ def export_backtest_to_pdf(
     """
     Export backtest results to a PDF file.
 
-    Args:
-        results: The backtest results
-        output_path: Optional output file path. If None, generates a filename.
+    Parameters
+    ----------
+    results : BacktestResult
+        The backtest results
+    output_path : str or None, optional
+        Optional output file path. If None, generates a filename.
 
-    Returns:
+    Returns
+    -------
+    str
         Path to the generated PDF file
     """
     # Treat empty string as None to use default directory
@@ -641,14 +657,22 @@ def export_backtest_all_to_pdf(
     """
     Export aggregated backtest results (from backtest-all) to a PDF file.
 
-    Args:
-        league_summaries: List of league summary dictionaries
-        all_results: List of all prediction results
-        league_type: Type of leagues tested (e.g., "major European", "Persian Gulf")
-        weeks: Number of weeks tested
-        output_path: Optional output file path. If None, generates a filename.
+    Parameters
+    ----------
+    league_summaries : list[dict]
+        List of league summary dictionaries
+    all_results : list
+        List of all prediction results
+    league_type : str
+        Type of leagues tested (e.g., "major European", "Persian Gulf")
+    weeks : int
+        Number of weeks tested
+    output_path : str or None, optional
+        Optional output file path. If None, generates a filename.
 
-    Returns:
+    Returns
+    -------
+    str
         Path to the generated PDF file
     """
     # Treat empty string as None to use default directory

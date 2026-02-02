@@ -236,13 +236,14 @@ class Backtester:
     """
     Backtester for evaluating betting model against historical data.
 
-    Usage:
-        backtester = Backtester()
-        results = backtester.run(
-            competition_id="1",  # Premier League
-            weeks=4,
-        )
-        print(f"Accuracy: {results.accuracy:.1%}")
+    Examples
+    --------
+    >>> backtester = Backtester()
+    >>> results = backtester.run(
+    ...     competition_id="1",  # Premier League
+    ...     weeks=4,
+    ... )
+    >>> print(f"Accuracy: {results.accuracy:.1%}")
     """
 
     # Known competition IDs (from Livescore API)
@@ -260,9 +261,12 @@ class Backtester:
         """
         Initialize the backtester.
 
-        Args:
-            client: Livescore API client
-            model: Betting model to evaluate
+        Parameters
+        ----------
+        client : LivescoreClient or None, optional
+            Livescore API client
+        model : BettingModel or None, optional
+            Betting model to evaluate
         """
         self.client = client or LivescoreClient()
         self.model = model or BettingModel()
@@ -279,15 +283,24 @@ class Backtester:
         """
         Run backtest on historical data.
 
-        Args:
-            competition_id: Competition ID to backtest
-            weeks: Number of weeks of history (if from_date not specified)
-            from_date: Start date for historical data
-            to_date: End date for historical data (defaults to today)
-            min_probability: Minimum probability threshold for predictions
-            verbose: Print progress information
+        Parameters
+        ----------
+        competition_id : str, optional
+            Competition ID to backtest
+        weeks : int, optional
+            Number of weeks of history (if from_date not specified)
+        from_date : datetime or None, optional
+            Start date for historical data
+        to_date : datetime or None, optional
+            End date for historical data (defaults to today)
+        min_probability : float, optional
+            Minimum probability threshold for predictions
+        verbose : bool, optional
+            Print progress information
 
-        Returns:
+        Returns
+        -------
+        BacktestResults
             BacktestResults with all predictions and accuracy metrics
         """
         # Calculate date range: current date minus n weeks

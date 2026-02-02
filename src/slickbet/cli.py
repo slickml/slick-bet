@@ -355,7 +355,9 @@ def run_competitions(args: argparse.Namespace) -> int:
     """
     List available competitions.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 for success, 1 for error)
     """
     print()
@@ -443,7 +445,9 @@ def run_backtest(args: argparse.Namespace) -> int:
     """
     Run the backtest with the given arguments.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 for success, 1 for error)
     """
     print()
@@ -512,7 +516,9 @@ def run_backtest_all(args: argparse.Namespace) -> int:
     """
     Run backtest on all major leagues and show aggregated results.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 for success, 1 for error)
     """
     # Major European leagues
@@ -526,7 +532,7 @@ def run_backtest_all(args: argparse.Namespace) -> int:
 
     # Minor European leagues
     MINOR_LEAGUES = [
-        ("34", "🇧🇪 Belgian Pro League", "Belgium"),
+        ("68", "🇧🇪 Belgian Pro League", "Belgium"),
         ("8", "🇵🇹 Primeira Liga", "Portugal"),
         ("6", "🇹🇷 Super Lig", "Turkey"),
         ("196", "🇳🇱 Eredivisie", "Netherlands"),
@@ -733,7 +739,9 @@ def run_screener(args: argparse.Namespace) -> int:
     """
     Run the betting screener with the given arguments.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 for success, 1 for error)
     """
     # Create configuration
@@ -883,7 +891,9 @@ def run_debug(args: argparse.Namespace) -> int:
     """
     Debug API responses to understand data structure.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 for success, 1 for error)
     """
     import json

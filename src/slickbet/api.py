@@ -5,6 +5,7 @@ Livescore API client for fetching soccer matches and statistics.
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
 import requests
@@ -36,10 +37,14 @@ class Odds:
         """
         Calculate implied probability from odds.
 
-        Args:
-            outcome: "home", "draw", or "away"
+        Parameters
+        ----------
+        outcome : str
+            "home", "draw", or "away"
 
-        Returns:
+        Returns
+        -------
+        float or None
             Implied probability (0-1) or None if odds not available
         """
         odds_map = {"home": self.home_win, "draw": self.draw, "away": self.away_win}
@@ -274,6 +279,19 @@ class LivescoreAPIError(Exception):
     pass
 
 
+class APIEndpoint(str, Enum):
+    """Enumeration of Livescore API endpoints."""
+
+    FIXTURES_MATCHES = "fixtures/matches.json"
+    COMPETITIONS_LIST = "competitions/list.json"
+    COUNTRIES_LIST = "countries/list.json"
+    LEAGUES_TABLE = "leagues/table.json"
+    TEAMS_MATCHES = "teams/matches.json"
+    TEAMS_HEAD2HEAD = "teams/head2head.json"
+    SCORES_MATCH_STATS = "scores/match_stats.json"
+    MATCHES_HISTORY = "matches/history.json"
+
+
 class LivescoreClient:
     """
     Client for interacting with the Livescore API.
@@ -287,9 +305,12 @@ class LivescoreClient:
         """
         Initialize the Livescore API client.
 
-        Args:
-            api_key: API key (defaults to LIVESCORE_API_KEY env var)
-            api_secret: API secret (defaults to LIVESCORE_API_SECRET env var)
+        Parameters
+        ----------
+        api_key : str or None, optional
+            API key (defaults to LIVESCORE_API_KEY env var)
+        api_secret : str or None, optional
+            API secret (defaults to LIVESCORE_API_SECRET env var)
         """
         self.api_key = api_key or os.environ.get("LIVESCORE_API_KEY")
         self.api_secret = api_secret or os.environ.get("LIVESCORE_API_SECRET")
@@ -305,18 +326,27 @@ class LivescoreClient:
             {"Accept": "application/json", "User-Agent": "SlickBet/1.0"}
         )
 
-    def _make_request(self, endpoint: str, params: dict | None = None) -> dict:
+    def _make_request(
+        self, endpoint: APIEndpoint | str, params: dict | None = None
+    ) -> dict:
         """
         Make an authenticated request to the API.
 
-        Args:
-            endpoint: API endpoint (e.g., "fixtures/matches.json")
-            params: Additional query parameters
+        Parameters
+        ----------
+        endpoint : APIEndpoint or str
+            API endpoint (APIEndpoint enum or string)
+        params : dict or None, optional
+            Additional query parameters
 
-        Returns:
+        Returns
+        -------
+        dict
             JSON response as dictionary
         """
-        url = f"{self.BASE_URL}/{endpoint}"
+        # Convert enum to string if needed
+        endpoint_str = endpoint.value if isinstance(endpoint, APIEndpoint) else endpoint
+        url = f"{self.BASE_URL}/{endpoint_str}"
 
         # Build request parameters with authentication
         request_params = {
@@ -371,12 +401,18 @@ class LivescoreClient:
         """
         Get all fixtures for a specific date.
 
-        Args:
-            date: The date to fetch fixtures for
-            competition_id: Optional competition ID to filter by
-            fetch_all_pages: Whether to fetch all pages (default: True)
+        Parameters
+        ----------
+        date : datetime
+            The date to fetch fixtures for
+        competition_id : str or None, optional
+            Optional competition ID to filter by
+        fetch_all_pages : bool, optional
+            Whether to fetch all pages (default: True)
 
-        Returns:
+        Returns
+        -------
+        list[Match]
             List of Match objects
         """
         date_str = date.strftime("%Y-%m-%d")
@@ -389,7 +425,7 @@ class LivescoreClient:
             if competition_id:
                 params["competition_id"] = competition_id
 
-            data = self._make_request("fixtures/matches.json", params=params)
+            data = self._make_request(APIEndpoint.FIXTURES_MATCHES, params=params)
 
             fixtures = self._safe_get_nested(data, "data", "fixtures", default=[])
 
@@ -425,7 +461,9 @@ class LivescoreClient:
         """
         Get all fixtures scheduled for tomorrow.
 
-        Returns:
+        Returns
+        -------
+        list[Match]
             List of Match objects for tomorrow's games
         """
         tomorrow = datetime.now() + timedelta(days=1)
@@ -435,17 +473,21 @@ class LivescoreClient:
         """
         Get list of available competitions.
 
-        Args:
-            country_id: Optional country ID to filter competitions
+        Parameters
+        ----------
+        country_id : str or None, optional
+            Optional country ID to filter competitions
 
-        Returns:
+        Returns
+        -------
+        list[dict[str, Any]]
             List of competition dictionaries with id, name, country
         """
         params: dict[str, Any] = {}
         if country_id:
             params["country_id"] = country_id
 
-        data = self._make_request("competitions/list.json", params=params)
+        data = self._make_request(APIEndpoint.COMPETITIONS_LIST, params=params)
 
         competitions = []
         comp_list = self._safe_get_nested(data, "data", "competition", default=[])
@@ -471,10 +513,12 @@ class LivescoreClient:
         """
         Get list of available countries.
 
-        Returns:
+        Returns
+        -------
+        list[dict[str, Any]]
             List of country dictionaries with id and name
         """
-        data = self._make_request("countries/list.json")
+        data = self._make_request(APIEndpoint.COUNTRIES_LIST)
 
         countries = []
         country_list = self._safe_get_nested(data, "data", "country", default=[])
@@ -498,14 +542,18 @@ class LivescoreClient:
         """
         Get team standings/positions for a competition.
 
-        Args:
-            competition_id: The competition/league ID
+        Parameters
+        ----------
+        competition_id : str
+            The competition/league ID
 
-        Returns:
+        Returns
+        -------
+        dict[str, int]
             Dictionary mapping team ID to position
         """
         data = self._make_request(
-            "leagues/table.json", params={"competition_id": competition_id}
+            APIEndpoint.LEAGUES_TABLE, params={"competition_id": competition_id}
         )
 
         standings = {}
@@ -533,15 +581,20 @@ class LivescoreClient:
         """
         Get recent form for a team (last N matches).
 
-        Args:
-            team_id: The team ID
-            limit: Number of recent matches to consider
+        Parameters
+        ----------
+        team_id : str
+            The team ID
+        limit : int, optional
+            Number of recent matches to consider
 
-        Returns:
+        Returns
+        -------
+        str
             Form string like "WWDLW" (W=win, D=draw, L=loss)
         """
         data = self._make_request(
-            "teams/matches.json", params={"team_id": team_id, "number": limit * 2}
+            APIEndpoint.TEAMS_MATCHES, params={"team_id": team_id, "number": limit * 2}
         )
 
         form = []
@@ -613,15 +666,21 @@ class LivescoreClient:
         - Home/Away specific win rates
         - Points per game
 
-        Args:
-            team_id: The team ID
-            num_matches: Number of recent matches to analyze
+        Parameters
+        ----------
+        team_id : str
+            The team ID
+        num_matches : int, optional
+            Number of recent matches to analyze
 
-        Returns:
+        Returns
+        -------
+        TeamPerformanceStats
             TeamPerformanceStats with calculated metrics
         """
         data = self._make_request(
-            "teams/matches.json", params={"team_id": team_id, "number": num_matches * 2}
+            APIEndpoint.TEAMS_MATCHES,
+            params={"team_id": team_id, "number": num_matches * 2},
         )
 
         stats = TeamPerformanceStats(team_id=team_id)
@@ -788,16 +847,22 @@ class LivescoreClient:
         """
         Get head-to-head statistics between two teams.
 
-        Args:
-            home_team_id: Home team ID
-            away_team_id: Away team ID
-            limit: Number of recent H2H matches to consider
+        Parameters
+        ----------
+        home_team_id : str
+            Home team ID
+        away_team_id : str
+            Away team ID
+        limit : int, optional
+            Number of recent H2H matches to consider
 
-        Returns:
+        Returns
+        -------
+        dict
             Dictionary with H2H statistics
         """
         data = self._make_request(
-            "teams/head2head.json",
+            APIEndpoint.TEAMS_HEAD2HEAD,
             params={"team1_id": home_team_id, "team2_id": away_team_id},
         )
 
@@ -856,14 +921,18 @@ class LivescoreClient:
         Per https://live-score-api.com/documentation/reference/23/match-statistics
         Statistics are only available after the match has started.
 
-        Args:
-            match_id: The match ID
+        Parameters
+        ----------
+        match_id : str
+            The match ID
 
-        Returns:
+        Returns
+        -------
+        MatchStatistics
             MatchStatistics object with available stats
         """
         data = self._make_request(
-            "scores/match_stats.json", params={"match_id": match_id}
+            APIEndpoint.SCORES_MATCH_STATS, params={"match_id": match_id}
         )
 
         stats_data = self._safe_get_nested(data, "data", default={})
@@ -899,14 +968,22 @@ class LivescoreClient:
 
         Per https://live-score-api.com/documentation/reference/15/football_data_history_matches
 
-        Args:
-            competition_id: Filter by competition (comma-separated for multiple)
-            team_id: Filter by team (comma-separated for multiple)
-            from_date: Get matches from this date onwards
-            to_date: Get matches until this date
-            page: Page number for pagination
+        Parameters
+        ----------
+        competition_id : str or None, optional
+            Filter by competition (comma-separated for multiple)
+        team_id : str or None, optional
+            Filter by team (comma-separated for multiple)
+        from_date : datetime or None, optional
+            Get matches from this date onwards
+        to_date : datetime or None, optional
+            Get matches until this date
+        page : int, optional
+            Page number for pagination
 
-        Returns:
+        Returns
+        -------
+        list[HistoricalMatch]
             List of HistoricalMatch objects
         """
         params: dict[str, Any] = {"page": page}
@@ -920,7 +997,7 @@ class LivescoreClient:
         if to_date:
             params["to"] = to_date.strftime("%Y-%m-%d")
 
-        data = self._make_request("matches/history.json", params=params)
+        data = self._make_request(APIEndpoint.MATCHES_HISTORY, params=params)
 
         matches = []
         match_list = self._safe_get_nested(data, "data", "match", default=[])
@@ -1034,11 +1111,16 @@ class LivescoreClient:
         """
         Get recent match history for a specific team.
 
-        Args:
-            team_id: The team ID
-            limit: Maximum number of matches to return
+        Parameters
+        ----------
+        team_id : str
+            The team ID
+        limit : int, optional
+            Maximum number of matches to return
 
-        Returns:
+        Returns
+        -------
+        list[HistoricalMatch]
             List of HistoricalMatch objects (most recent first)
         """
         # Get enough pages to hopefully get limit matches
@@ -1062,7 +1144,7 @@ class LivescoreClient:
         """
         Parse a fixture from the API response into a Match object.
 
-        API may return two formats:
+        TODO(amir): refactor this; API may return two formats:
         Format 1 (nested):
         {
             "id": 1712210,
@@ -1211,6 +1293,7 @@ class LivescoreClient:
             pre_odds=pre_odds if pre_odds.has_odds else None,
         )
 
+    # TODO(amir): I did this in case we wanna bet on cup matches.
     # Mapping from cup competitions to their respective leagues for standings lookup
     # This allows us to show league positions even for cup matches
     CUP_TO_LEAGUE_MAPPING = {
@@ -1235,10 +1318,14 @@ class LivescoreClient:
         """
         Enrich a match object with additional statistics.
 
-        Args:
-            match: The match to enrich
+        Parameters
+        ----------
+        match : Match
+            The match to enrich
 
-        Returns:
+        Returns
+        -------
+        Match
             Match with additional stats (form, standings, H2H, performance)
         """
         # Get IDs safely
