@@ -175,6 +175,39 @@ def export_screener_to_pdf(
     story.append(summary_table)
     story.append(Spacer(1, 0.3 * inch))
 
+    # Disclaimer Section
+    disclaimer_style = ParagraphStyle(
+        "DisclaimerStyle",
+        parent=styles["Normal"],
+        fontSize=9,
+        textColor=colors.HexColor("#7f8c8d"),
+        alignment=1,  # Center
+        spaceAfter=12,
+    )
+    story.append(
+        Paragraph(
+            "<i><b>⚠️ DISCLAIMER:</b> This tool is for educational and research purposes only. "
+            "We are not providing financial advice, and we are not responsible for any financial "
+            "decisions made based on this information. Sports betting involves risk of financial loss. "
+            "Always gamble responsibly and within your means.</i>",
+            disclaimer_style,
+        )
+    )
+    story.append(Spacer(1, 0.1 * inch))
+    story.append(
+        Paragraph(
+            "<i>Powered by SlickML LLC</i>",
+            ParagraphStyle(
+                "PoweredByStyle",
+                parent=styles["Normal"],
+                fontSize=8,
+                textColor=colors.HexColor("#95a5a6"),
+                alignment=1,  # Center
+            ),
+        )
+    )
+    story.append(Spacer(1, 0.2 * inch))
+
     # Predictions Section
     if predictions:
         for i, pred in enumerate(predictions, 1):
@@ -328,13 +361,18 @@ def export_screener_to_pdf(
             # Each recommendation ends here, next one will start on new page
             # (PageBreak is added at the start of each loop iteration)
 
-    # Footer note
+    # Footer note (simplified since we have a prominent disclaimer after summary)
     story.append(Spacer(1, 0.2 * inch))
     story.append(
         Paragraph(
-            "<i>⚠️ Disclaimer: This tool is for educational and entertainment purposes only. "
-            "Past performance does not guarantee future results. Always gamble responsibly.</i>",
-            styles["Normal"],
+            "<i>Past performance does not guarantee future results. Always 'predict' responsibly.</i>",
+            ParagraphStyle(
+                "FooterStyle",
+                parent=styles["Normal"],
+                fontSize=8,
+                textColor=colors.HexColor("#95a5a6"),
+                alignment=1,  # Center
+            ),
         )
     )
 
