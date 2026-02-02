@@ -146,6 +146,12 @@ Examples:
         help="Export results to PDF file (optional: specify filename, otherwise auto-generated)",
     )
 
+    backtest_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Show detailed match-by-match predictions and results",
+    )
+
     # Backtest-all subcommand (all major leagues)
     backtest_all_parser = subparsers.add_parser(
         "backtest-all",
@@ -203,6 +209,12 @@ Examples:
         nargs="?",
         const="",
         help="Export results to PDF file (optional: specify filename, otherwise auto-generated)",
+    )
+
+    backtest_all_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Show detailed match-by-match predictions and results",
     )
 
     # Main screener options (default command)
@@ -483,6 +495,7 @@ def run_backtest(args: argparse.Namespace) -> int:
             to_date=to_date,
             min_probability=args.min_prob,
             verbose=True,
+            debug=getattr(args, "debug", False),
         )
 
         if args.json:
@@ -585,6 +598,7 @@ def run_backtest_all(args: argparse.Namespace) -> int:
                 weeks=args.weeks,
                 min_probability=args.min_prob,
                 verbose=False,
+                debug=getattr(args, "debug", False),
             )
 
             # Store results

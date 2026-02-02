@@ -251,7 +251,7 @@ class BettingScreener:
             ScreenerResult with ranked predictions
         """
         print("🔍 Fetching tomorrow's fixtures...")
-        matches = self.client.get_tomorrow_fixtures()
+        matches = self._get_filtered_fixtures(datetime.now() + timedelta(days=1))
         print(f"   Found {len(matches)} matches")
 
         return self._screen_matches(matches)
@@ -271,7 +271,7 @@ class BettingScreener:
             ScreenerResult with ranked predictions
         """
         print(f"🔍 Fetching fixtures for {date.strftime('%Y-%m-%d')}...")
-        matches = self.client.get_fixtures_by_date(date)
+        matches = self._get_filtered_fixtures(date)
         print(f"   Found {len(matches)} matches")
 
         return self._screen_matches(matches)
@@ -298,7 +298,7 @@ class BettingScreener:
         for day_offset in range(1, days + 1):
             date = today + timedelta(days=day_offset)
             try:
-                matches = self.client.get_fixtures_by_date(date)
+                matches = self._get_filtered_fixtures(date)
                 all_matches.extend(matches)
                 print(f"   {date.strftime('%Y-%m-%d')}: {len(matches)} matches")
             except LivescoreAPIError as e:
@@ -308,6 +308,50 @@ class BettingScreener:
         print(f"   Total: {len(all_matches)} matches")
 
         return self._screen_matches(all_matches)
+
+    def _get_filtered_fixtures(self, date: datetime) -> list[Match]:
+        """
+        Get fixtures for a date, using optimized API filtering when possible.
+
+        Uses fixtures/list.json endpoint with competition_id filtering when
+        filtering by league type (major, minor, gulf, all) for better performance.
+
+        Parameters
+        ----------
+        date : datetime
+            The date to fetch fixtures for
+
+        Returns
+        -------
+        list[Match]
+            List of Match objects
+        """
+        # If filtering by specific competition IDs, use the optimized endpoint
+        if self.config.competition_ids:
+            return self.client.get_fixtures_list(
+                date=date, competition_ids=list(self.config.competition_ids)
+            )
+
+        # If filtering by league type, use competition IDs for that type
+        competition_ids = None
+        if self.config.major_leagues_only:
+            competition_ids = list(MAJOR_LEAGUE_IDS)
+        elif self.config.gulf_leagues_only:
+            competition_ids = list(GULF_LEAGUE_IDS)
+        elif self.config.all_leagues:
+            # Combine all supported league IDs
+            competition_ids = (
+                list(MAJOR_LEAGUE_IDS) + list(MINOR_LEAGUE_IDS) + list(GULF_LEAGUE_IDS)
+            )
+
+        if competition_ids:
+            # Use optimized endpoint with competition_id filtering
+            return self.client.get_fixtures_list(
+                date=date, competition_ids=competition_ids
+            )
+
+        # Fall back to regular endpoint for other filters
+        return self.client.get_fixtures_by_date(date)
 
     def _screen_matches(self, matches: list[Match]) -> ScreenerResult:
         """
@@ -391,7 +435,7 @@ class BettingScreener:
                     "   ℹ️  Persian Gulf leagues: Saudi Pro League, Qatar Stars League, UAE Pro League"
                 )
 
-        # Filter by ALL supported leagues (Major + Persian Gulf)
+        # Filter by ALL supported leagues (Major + Minor + Persian Gulf)
         elif self.config.all_leagues:
             filtered = [
                 m
@@ -433,131 +477,17 @@ class BettingScreener:
         return filtered
 
     def _is_major_league(self, match: Match) -> bool:
-        """Check if a match is from one of the major European leagues."""
+        """
+        Check if a match is from one of the major European leagues.
+
+        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        """
         # Exclude cup competitions
         if self._is_cup_competition(match):
             return False
 
-        competition_lower = match.competition.lower()
-        country_lower = match.country.lower()  # Note: This is often the stadium name
-
-        # German Bundesliga (exact match to avoid 2nd Bundesliga, etc.)
-        if competition_lower == "bundesliga":
-            return True
-
-        # Spanish La Liga (LaLiga Santander, La Liga, Primera Division)
-        if "laliga" in competition_lower or "la liga" in competition_lower:
-            # Exclude other countries' La Liga
-            if "santander" in competition_lower or "primera" in competition_lower:
-                return True
-            # Check for Spanish stadiums
-            spanish_indicators = [
-                "bernab",
-                "camp nou",
-                "mestalla",
-                "sanchez pizjuan",
-                "ramón sánchez",
-                "estadio",
-                "san mam",
-                "coliseum",
-            ]
-            if any(ind in country_lower for ind in spanish_indicators):
-                return True
-
-        # Italian Serie A (exact match to avoid Serie B, Serie C, Brazilian Serie A)
-        if competition_lower == "serie a":
-            # Check for Italian stadiums
-            italian_indicators = [
-                "stadio",
-                "olimpico",
-                "san siro",
-                "juventus",
-                "maradona",
-                "giuseppe",
-                "artemio",
-                "allianz stadium",
-                "sinigaglia",
-            ]
-            if any(ind in country_lower for ind in italian_indicators):
-                return True
-
-        # French Ligue 1 (exact match)
-        if competition_lower == "ligue 1":
-            # Check for French stadiums
-            french_indicators = [
-                "parc des princes",
-                "velodrome",
-                "groupama",
-                "roazhon",
-                "stade",
-                "meinau",
-                "allianz riviera",
-                "bollaert",
-            ]
-            if any(ind in country_lower for ind in french_indicators):
-                return True
-
-        # English Premier League (need to filter out other Premier Leagues)
-        if competition_lower == "premier league":
-            # Known English Premier League stadiums
-            english_stadiums = [
-                "old trafford",
-                "anfield",
-                "emirates",
-                "stamford bridge",
-                "etihad",
-                "tottenham",
-                "villa park",
-                "st james",
-                "goodison",
-                "king power",
-                "london stadium",
-                "city ground",
-                "molineux",
-                "selhurst",
-                "craven cottage",
-                "gtech",
-                "amex",
-                "vitality",
-                "carrow",
-                "elland",
-                "bramall",
-                "the hawthorns",
-                "falmer",
-                "portman",
-                "turf moor",
-            ]
-            if any(stadium in country_lower for stadium in english_stadiums):
-                return True
-
-            # Also check for well-known English teams in home team name
-            english_teams = [
-                "manchester united",
-                "manchester city",
-                "liverpool",
-                "chelsea",
-                "arsenal",
-                "tottenham",
-                "newcastle",
-                "aston villa",
-                "west ham",
-                "brighton",
-                "crystal palace",
-                "brentford",
-                "fulham",
-                "bournemouth",
-                "nottingham forest",
-                "wolves",
-                "wolverhampton",
-                "everton",
-                "leicester",
-                "leeds",
-            ]
-            home_lower = match.home_team.name.lower()
-            if any(team in home_lower for team in english_teams):
-                return True
-
-        return False
+        # Check by competition ID (most reliable)
+        return match.competition_id in MAJOR_LEAGUE_IDS
 
     def _is_cup_competition(self, match: Match) -> bool:
         """Check if a match is a cup competition (not a league match)."""
@@ -573,172 +503,30 @@ class BettingScreener:
         return False
 
     def _is_gulf_league(self, match: Match) -> bool:
-        """Check if a match is from one of the Persian Gulf leagues (Saudi, Qatar, UAE)."""
+        """
+        Check if a match is from one of the Persian Gulf leagues (Saudi, Qatar, UAE).
+
+        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        """
         # Exclude cup competitions
         if self._is_cup_competition(match):
             return False
 
-        competition_lower = match.competition.lower()
-        country_lower = match.country.lower()  # Often contains stadium name
-        home_lower = match.home_team.name.lower() if match.home_team else ""
-
-        # Check competition ID first (most reliable)
-        if match.competition_id in GULF_LEAGUE_IDS:
-            return True
-
-        # Saudi Pro League indicators
-        saudi_teams = [
-            "al hilal",
-            "al nassr",
-            "al ahli",
-            "al ittihad",
-            "al shabab",
-            "al fateh",
-            "al feiha",
-            "al taawon",
-            "al raed",
-            "damac",
-            "al ettifaq",
-            "al khaleej",
-            "al riyadh",
-            "al hazm",
-            "al okhdood",
-            "neom",
-            "al qadasiya",
-            "al kholood",
-            "dhamk",
-        ]
-        saudi_stadiums = [
-            "king fahd",
-            "king abdullah",
-            "prince faisal",
-            "prince sultan",
-            "mrsool park",
-            "king saud",
-            "jeddah",
-            "riyadh",
-        ]
-
-        if any(team in home_lower for team in saudi_teams):
-            return True
-        if any(stadium in country_lower for stadium in saudi_stadiums):
-            return True
-        if "premier league" in competition_lower and any(
-            s in country_lower for s in saudi_stadiums
-        ):
-            return True
-
-        # Qatar Stars League indicators
-        qatar_teams = [
-            "al sadd",
-            "al duhail",
-            "al rayyan",
-            "al arabi",
-            "al gharafa",
-            "al wakrah",
-            "al ahli doha",
-            "qatar sc",
-            "al shamal",
-            "umm salal",
-            "al sailiya",
-            "muaither",
-            "al khor",
-        ]
-        qatar_stadiums = [
-            "khalifa international",
-            "al janoub",
-            "education city",
-            "lusail",
-            "ahmad bin ali",
-            "al thumama",
-            "jassim bin hamad",
-            "doha",
-        ]
-
-        if "qatar" in competition_lower:
-            return True
-        if any(team in home_lower for team in qatar_teams):
-            return True
-        if any(stadium in country_lower for stadium in qatar_stadiums):
-            return True
-
-        # UAE Pro League indicators
-        uae_teams = [
-            "al ain",
-            "al wasl",
-            "al jazira",
-            "shabab al ahli",
-            "al nasr dubai",
-            "al wahda",
-            "baniyas",
-            "ajman",
-            "al sharjah",
-            "emirates club",
-            "al dhafra",
-            "hatta",
-            "khor fakkan",
-            "kalba",
-            "al ittihad kalba",
-        ]
-        uae_stadiums = [
-            "hazza bin zayed",
-            "mohammed bin zayed",
-            "al nahyan",
-            "rashid",
-            "zabeel",
-            "sharjah",
-            "dubai",
-            "abu dhabi",
-        ]
-
-        if "uae" in competition_lower or "emirates" in competition_lower:
-            return True
-        if any(team in home_lower for team in uae_teams):
-            return True
-        if any(stadium in country_lower for stadium in uae_stadiums):
-            return True
-
-        return False
+        # Check by competition ID (most reliable)
+        return match.competition_id in GULF_LEAGUE_IDS
 
     def _is_minor_league(self, match: Match) -> bool:
-        """Check if a match is from one of the minor European leagues (Belgium, Portugal, Turkey, Netherlands)."""
+        """
+        Check if a match is from one of the minor European leagues (Belgium, Portugal, Turkey, Netherlands).
+
+        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        """
         # Exclude cup competitions
         if self._is_cup_competition(match):
             return False
 
-        competition_lower = match.competition.lower()
-        country_lower = match.country.lower()  # Often contains stadium name
-        home_lower = match.home_team.name.lower() if match.home_team else ""
-
-        # Check competition ID first (most reliable)
-        if match.competition_id in MINOR_LEAGUE_IDS:
-            return True
-
-        # Belgian Pro League indicators
-        if "belgian" in competition_lower or "belgium" in country_lower:
-            if "pro league" in competition_lower:
-                return True
-
-        # Primeira Liga (Portugal) indicators
-        if "primeira liga" in competition_lower or "portugal" in country_lower:
-            if "primeira" in competition_lower:
-                return True
-
-        # Super Lig (Turkey) indicators
-        if "super lig" in competition_lower or "süper lig" in competition_lower:
-            return True
-        if "turkey" in country_lower or "turkish" in competition_lower:
-            if "super" in competition_lower or "lig" in competition_lower:
-                return True
-
-        # Eredivisie (Netherlands/Holland) indicators
-        if "eredivisie" in competition_lower:
-            return True
-        if "holland" in country_lower or "netherlands" in country_lower:
-            if "eredivisie" in competition_lower:
-                return True
-
-        return False
+        # Check by competition ID (most reliable)
+        return match.competition_id in MINOR_LEAGUE_IDS
 
     def _enrich_matches(self, matches: list[Match]) -> list[Match]:
         """

@@ -95,11 +95,19 @@ poe backtest-all-global --weeks=4
 ### Backtest Commands
 
 #### Aggregated Backtests
-| Command                             | Description                                    |
-| ----------------------------------- | ---------------------------------------------- |
-| `poe backtest-all --weeks N`        | Backtest ALL major + minor European leagues    |
-| `poe backtest-gulf --weeks N`       | Backtest ALL Persian Gulf leagues              |
-| `poe backtest-all-global --weeks N` | Backtest ALL leagues (Major + Minor European + Persian Gulf) |
+| Command                                       | Description                                                  |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| `poe backtest-all --weeks N`                  | Backtest ALL major + minor European leagues                  |
+| `poe backtest-gulf --weeks N`                 | Backtest ALL Persian Gulf leagues                            |
+| `poe backtest-all-global --weeks N`           | Backtest ALL leagues (Major + Minor European + Persian Gulf) |
+| `poe backtest-all-global --weeks N --debug=1` | Same as above with detailed match-by-match debug output      |
+
+**Note**: Add `--debug=1` to any backtest command (or `--debug` for direct CLI usage) to see detailed match-by-match information including:
+- Match details (date, teams, competition)
+- Actual match results
+- Our predictions (team, probability, confidence)
+- Whether the prediction was correct or incorrect
+- Key reasoning factors
 
 #### Individual League Backtests
 | Command                             | Description          |
@@ -138,12 +146,12 @@ poe backtest-all-global --weeks=4
 | 5   | Ligue 1        | 🇫🇷 France  |
 
 ### Minor European Leagues
-| ID  | League             | Country        |
-| --- | ------------------ | -------------- |
-| 68  | Belgian Pro League | 🇧🇪 Belgium      |
-| 8   | Primeira Liga      | 🇵🇹 Portugal     |
-| 6   | Super Lig          | 🇹🇷 Turkey       |
-| 196 | Eredivisie         | 🇳🇱 Netherlands   |
+| ID  | League             | Country       |
+| --- | ------------------ | ------------- |
+| 68  | Belgian Pro League | 🇧🇪 Belgium     |
+| 8   | Primeira Liga      | 🇵🇹 Portugal    |
+| 6   | Super Lig          | 🇹🇷 Turkey      |
+| 196 | Eredivisie         | 🇳🇱 Netherlands |
 
 ### Persian Gulf Leagues
 | ID  | League             | Country        |
@@ -187,29 +195,38 @@ Each prediction is assigned a grade based on backtest performance:
 
 ## 📊 Backtest Results
 
-Based on 4-week backtests across all leagues:
+Based on 1-week backtests across all leagues (103 matches):
 
-### Major European Leagues
-| League           | Accuracy (excl. draws) | Best Double Chance |
-| ---------------- | ---------------------- | ------------------ |
-| 🇩🇪 Bundesliga     | **93.1%**              | 95.2%              |
-| 🇮🇹 Serie A        | **86.8%**              | 90.4%              |
-| 🇫🇷 Ligue 1        | **77.3%**              | 81.5%              |
-| 🇪🇸 La Liga        | **75.9%**              | 81.6%              |
-| 🇬🇧 Premier League | **68.0%**              | 80.5%              |
+### Aggregated Results
+- **Total Matches**: 103
+- **Correct Predictions**: 59
+- **Overall Accuracy**: 57.3%
+- **Draws Encountered**: 31 (30.1%)
+- **Accuracy (excl. draws)**: 81.9%
+- **Best Recommended Double Chance**: 87.4%
 
-### Persian Gulf Leagues
-| League               | Accuracy (excl. draws) | Best Double Chance |
-| -------------------- | ---------------------- | ------------------ |
-| 🇦🇪 UAE Pro League     | **77.8%**              | 84.0%              |
-| 🇸🇦 Saudi Pro League   | **77.3%**              | 82.5%              |
-| 🇶🇦 Qatar Stars League | **73.3%**              | 77.8%              |
+### League Comparison
+| League               | Matches | Accuracy | Excl. Draws | Best DC |
+| -------------------- | ------- | -------- | ----------- | ------- |
+| 🇮🇹 Serie A            | 8       | 87.5%    | **100.0%**  | 100.0%  |
+| 🇵🇹 Primeira Liga      | 7       | 71.4%    | **100.0%**  | 100.0%  |
+| 🇩🇪 Bundesliga         | 11      | 63.6%    | **87.5%**   | 90.9%   |
+| 🇸🇦 Saudi Pro League   | 12      | 58.3%    | **87.5%**   | 91.7%   |
+| 🇬🇧 Premier League     | 9       | 55.6%    | **83.3%**   | 88.9%   |
+| 🇫🇷 Ligue 1            | 9       | 55.6%    | **83.3%**   | 88.9%   |
+| 🇹🇷 Super Lig          | 8       | 62.5%    | **83.3%**   | 87.5%   |
+| 🇳🇱 Eredivisie         | 9       | 44.4%    | **80.0%**   | 88.9%   |
+| 🇶🇦 Qatar Stars League | 6       | 50.0%    | **75.0%**   | 83.3%   |
+| 🇧🇪 Belgian Pro League | 8       | 50.0%    | **66.7%**   | 75.0%   |
+| 🇦🇪 UAE Pro League     | 7       | 57.1%    | **66.7%**   | 71.4%   |
+| 🇪🇸 La Liga            | 9       | 33.3%    | **60.0%**   | 77.8%   |
 
 ### Key Findings
-- **High Probability (>60%) predictions** have ~85%+ accuracy
-- **Double Chance** is the safest bet type with 82-95% accuracy
-- **Bundesliga** is the most predictable league
-- **Premier League** has high draw rate (39%) - use Double Chance
+- **Overall accuracy (excluding draws)**: 81.9% across all leagues
+- **Double Chance** is the safest bet type with 87.4% accuracy
+- **Serie A** and **Primeira Liga** show perfect accuracy when excluding draws
+- **Draw rate**: 30.1% of matches ended in draws - use Double Chance for safer bets
+- **Best leagues for predictions**: Serie A, Primeira Liga, Bundesliga, Saudi Pro League
 
 ## 💻 Direct CLI Usage
 
@@ -238,10 +255,12 @@ slickbet --no-stats               # Fast mode (skip detailed stats)
 # Backtesting
 slickbet backtest --competition 2 --weeks 4     # Premier League, 4 weeks
 slickbet backtest --competition 2 --weeks 4 --pdf  # Export backtest to PDF
+slickbet backtest --competition 2 --weeks 4 --debug  # With detailed match-by-match debug output
 slickbet backtest-all --weeks 4                 # All major + minor European leagues
 slickbet backtest-all --weeks 4 --pdf           # Export aggregated results to PDF
 slickbet backtest-all --gulf-only --weeks 4     # All Persian Gulf leagues
 slickbet backtest-all --include-gulf --weeks 4  # Major + Minor European + Persian Gulf
+slickbet backtest-all --include-gulf --weeks 4 --debug  # With detailed match-by-match debug output
 ```
 
 ## 🐍 Python API
