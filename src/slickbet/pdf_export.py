@@ -618,7 +618,7 @@ def export_backtest_to_pdf(
     story.append(
         Paragraph(
             "<i>⚠️ Disclaimer: This tool is for educational and entertainment purposes only. "
-            "Past performance does not guarantee future results. Always gamble responsibly.</i>",
+            "Past performance does not guarantee future results. Always 'predict' responsibly.</i>",
             styles["Normal"],
         )
     )
