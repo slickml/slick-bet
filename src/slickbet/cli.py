@@ -228,7 +228,7 @@ Examples:
         type=int,
         default=1,
         metavar="N",
-        help="Number of days to screen ahead (default: 1 = tomorrow only)",
+        help="Number of days to screen ahead (0 = today, default: 1 = tomorrow only)",
     )
 
     # Filtering options
@@ -764,6 +764,10 @@ def run_screener(args: argparse.Namespace) -> int:
                 print("   Use YYYY-MM-DD format (e.g., 2025-02-15)")
                 return 1
             result = screener.screen_date(date)
+        elif args.days == 0:
+            # Screen matches for today
+            today = datetime.now()
+            result = screener.screen_date(today)
         elif args.days > 1:
             # Multiple days ahead
             result = screener.screen_days(days=args.days)
