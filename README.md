@@ -8,6 +8,7 @@ A Python-based betting screener for soccer games using the Livescore API. Fetche
 - 📊 **9-Factor Analysis** - Comprehensive statistical model for predictions
 - 🎲 **Double Chance Bets** - Safer betting options (1X, X2, 12)
 - 🏆 **Major European Leagues** - Bundesliga, Premier League, La Liga, Serie A, Ligue 1
+- 🌍 **Minor European Leagues** - Belgian Pro League, Primeira Liga, Super Lig, Eredivisie
 - 🏟️ **Persian Gulf Leagues** - Saudi Pro League, Qatar Stars League, UAE Pro League
 - 🎯 **Confidence Grades** - Visual indicators (🔥 HIGH VALUE, ✅ GOOD BET, 👍 DECENT, ⚠️ RISKY)
 - 📈 **Backtesting** - Validate model accuracy against historical data
@@ -59,7 +60,7 @@ poe backtest-all-global --weeks=4
 
 ### Screener Commands
 
-#### All Leagues (Major European + Persian Gulf)
+#### All Leagues (Major + Minor European + Persian Gulf)
 | Command                | Description                        |
 | ---------------------- | ---------------------------------- |
 | `poe run-all --days N` | Screen ALL leagues for next N days |
@@ -96,9 +97,9 @@ poe backtest-all-global --weeks=4
 #### Aggregated Backtests
 | Command                             | Description                                    |
 | ----------------------------------- | ---------------------------------------------- |
-| `poe backtest-all --weeks N`        | Backtest ALL major European leagues            |
+| `poe backtest-all --weeks N`        | Backtest ALL major + minor European leagues    |
 | `poe backtest-gulf --weeks N`       | Backtest ALL Persian Gulf leagues              |
-| `poe backtest-all-global --weeks N` | Backtest ALL leagues (European + Persian Gulf) |
+| `poe backtest-all-global --weeks N` | Backtest ALL leagues (Major + Minor European + Persian Gulf) |
 
 #### Individual League Backtests
 | Command                             | Description          |
@@ -135,6 +136,14 @@ poe backtest-all-global --weeks=4
 | 3   | La Liga        | 🇪🇸 Spain   |
 | 4   | Serie A        | 🇮🇹 Italy   |
 | 5   | Ligue 1        | 🇫🇷 France  |
+
+### Minor European Leagues
+| ID  | League             | Country        |
+| --- | ------------------ | -------------- |
+| 34  | Belgian Pro League | 🇧🇪 Belgium      |
+| 8   | Primeira Liga      | 🇵🇹 Portugal     |
+| 6   | Super Lig          | 🇹🇷 Turkey       |
+| 196 | Eredivisie         | 🇳🇱 Netherlands   |
 
 ### Persian Gulf Leagues
 | ID  | League             | Country        |
@@ -213,7 +222,7 @@ slickbet --days 5                 # Screen next 5 days
 # League filters
 slickbet --major-only             # Major European leagues only
 slickbet --gulf-only              # Persian Gulf leagues only
-slickbet --all-leagues            # All supported leagues
+slickbet --all-leagues            # All supported leagues (Major + Minor European + Persian Gulf)
 slickbet --league 2               # Specific league by ID
 
 # Probability filters
@@ -229,10 +238,10 @@ slickbet --no-stats               # Fast mode (skip detailed stats)
 # Backtesting
 slickbet backtest --competition 2 --weeks 4     # Premier League, 4 weeks
 slickbet backtest --competition 2 --weeks 4 --pdf  # Export backtest to PDF
-slickbet backtest-all --weeks 4                 # All major leagues
+slickbet backtest-all --weeks 4                 # All major + minor European leagues
 slickbet backtest-all --weeks 4 --pdf           # Export aggregated results to PDF
 slickbet backtest-all --gulf-only --weeks 4     # All Persian Gulf leagues
-slickbet backtest-all --include-gulf --weeks 4  # Major + Persian Gulf
+slickbet backtest-all --include-gulf --weeks 4  # Major + Minor European + Persian Gulf
 ```
 
 ## 🐍 Python API

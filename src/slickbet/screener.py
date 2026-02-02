@@ -23,6 +23,27 @@ MAJOR_LEAGUE_NAMES = [
 # Competition IDs for major leagues (from history API - used for backtesting)
 MAJOR_LEAGUE_IDS = {"1", "2", "3", "4", "5"}
 
+# Minor European leagues
+MINOR_LEAGUE_NAMES = [
+    "belgian pro league",
+    "pro league",  # Belgian Pro League
+    "primeira liga",
+    "portugal",
+    "super lig",
+    "turkey",
+    "eredivisie",
+    "holland",
+    "netherlands",
+]
+
+# Competition IDs for minor European leagues
+MINOR_LEAGUE_IDS = {
+    "34": "🇧🇪 Belgian Pro League",
+    "8": "🇵🇹 Primeira Liga",
+    "6": "🇹🇷 Super Lig",
+    "196": "🇳🇱 Eredivisie",
+}
+
 # Persian Gulf leagues (Saudi Pro League, Qatar Stars League, UAE Pro League)
 GULF_LEAGUE_NAMES = [
     "saudi",
@@ -47,6 +68,11 @@ ALL_LEAGUE_IDS = {
     "3": "🇪🇸 La Liga",
     "4": "🇮🇹 Serie A",
     "5": "🇫🇷 Ligue 1",
+    # Minor European
+    "34": "🇧🇪 Belgian Pro League",
+    "8": "🇵🇹 Primeira Liga",
+    "6": "🇹🇷 Super Lig",
+    "196": "🇳🇱 Eredivisie",
     # Persian Gulf
     "313": "🇸🇦 Saudi Pro League",
     "305": "🇶🇦 Qatar Stars League",
@@ -351,13 +377,16 @@ class BettingScreener:
             filtered = [
                 m
                 for m in filtered
-                if self._is_major_league(m) or self._is_gulf_league(m)
+                if self._is_major_league(m)
+                or self._is_minor_league(m)
+                or self._is_gulf_league(m)
             ]
             if filtered:
                 major = [m for m in filtered if self._is_major_league(m)]
+                minor = [m for m in filtered if self._is_minor_league(m)]
                 gulf = [m for m in filtered if self._is_gulf_league(m)]
                 print(
-                    f"   🌍 All leagues: {len(major)} Major European + {len(gulf)} Persian Gulf matches"
+                    f"   🌍 All leagues: {len(major)} Major European + {len(minor)} Minor European + {len(gulf)} Persian Gulf matches"
                 )
             else:
                 print("   ⚠️  No supported league fixtures found")
@@ -649,6 +678,46 @@ class BettingScreener:
             return True
         if any(stadium in country_lower for stadium in uae_stadiums):
             return True
+
+        return False
+
+    def _is_minor_league(self, match: Match) -> bool:
+        """Check if a match is from one of the minor European leagues (Belgium, Portugal, Turkey, Netherlands)."""
+        # Exclude cup competitions
+        if self._is_cup_competition(match):
+            return False
+
+        competition_lower = match.competition.lower()
+        country_lower = match.country.lower()  # Often contains stadium name
+        home_lower = match.home_team.name.lower() if match.home_team else ""
+
+        # Check competition ID first (most reliable)
+        if match.competition_id in MINOR_LEAGUE_IDS:
+            return True
+
+        # Belgian Pro League indicators
+        if "belgian" in competition_lower or "belgium" in country_lower:
+            if "pro league" in competition_lower:
+                return True
+
+        # Primeira Liga (Portugal) indicators
+        if "primeira liga" in competition_lower or "portugal" in country_lower:
+            if "primeira" in competition_lower:
+                return True
+
+        # Super Lig (Turkey) indicators
+        if "super lig" in competition_lower or "süper lig" in competition_lower:
+            return True
+        if "turkey" in country_lower or "turkish" in competition_lower:
+            if "super" in competition_lower or "lig" in competition_lower:
+                return True
+
+        # Eredivisie (Netherlands/Holland) indicators
+        if "eredivisie" in competition_lower:
+            return True
+        if "holland" in country_lower or "netherlands" in country_lower:
+            if "eredivisie" in competition_lower:
+                return True
 
         return False
 

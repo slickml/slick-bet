@@ -358,23 +358,26 @@ def export_screener_to_pdf(
                     )
                     story.append(Paragraph(f"   • {clean_reason}", styles["Normal"]))
 
+            # Disclaimer at the bottom of each recommendation
+            story.append(Spacer(1, 0.2 * inch))
+            story.append(
+                Paragraph(
+                    "<i>Past performance does not guarantee future results. Always 'predict' responsibly.</i>",
+                    ParagraphStyle(
+                        "DisclaimerStyle",
+                        parent=styles["Normal"],
+                        fontSize=8,
+                        textColor=colors.HexColor("#7f8c8d"),
+                        alignment=1,  # Center alignment
+                    ),
+                )
+            )
+
             # Each recommendation ends here, next one will start on new page
             # (PageBreak is added at the start of each loop iteration)
 
     # Footer note (simplified since we have a prominent disclaimer after summary)
     story.append(Spacer(1, 0.2 * inch))
-    story.append(
-        Paragraph(
-            "<i>Past performance does not guarantee future results. Always 'predict' responsibly.</i>",
-            ParagraphStyle(
-                "FooterStyle",
-                parent=styles["Normal"],
-                fontSize=8,
-                textColor=colors.HexColor("#95a5a6"),
-                alignment=1,  # Center
-            ),
-        )
-    )
 
     # Build PDF
     doc.build(story)

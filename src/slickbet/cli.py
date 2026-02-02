@@ -524,6 +524,14 @@ def run_backtest_all(args: argparse.Namespace) -> int:
         ("5", "🇫🇷 Ligue 1", "France"),
     ]
 
+    # Minor European leagues
+    MINOR_LEAGUES = [
+        ("34", "🇧🇪 Belgian Pro League", "Belgium"),
+        ("8", "🇵🇹 Primeira Liga", "Portugal"),
+        ("6", "🇹🇷 Super Lig", "Turkey"),
+        ("196", "🇳🇱 Eredivisie", "Netherlands"),
+    ]
+
     # Persian Gulf leagues
     GULF_LEAGUES = [
         ("313", "🇸🇦 Saudi Pro League", "Saudi Arabia"),
@@ -539,11 +547,13 @@ def run_backtest_all(args: argparse.Namespace) -> int:
         LEAGUES = GULF_LEAGUES
         league_type = "Persian Gulf"
     elif include_gulf:
-        LEAGUES = MAJOR_LEAGUES + GULF_LEAGUES
-        league_type = "ALL (Major + Persian Gulf)"
+        # Include Major + Minor European + Persian Gulf
+        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + GULF_LEAGUES
+        league_type = "ALL (Major + Minor European + Persian Gulf)"
     else:
-        LEAGUES = MAJOR_LEAGUES
-        league_type = "major European"
+        # Default: Major + Minor European (for backtest-all-global)
+        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES
+        league_type = "Major + Minor European"
 
     print()
     print("🏆 SlickBet - ALL LEAGUES Backtesting")
