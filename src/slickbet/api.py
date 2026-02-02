@@ -283,6 +283,7 @@ class APIEndpoint(str, Enum):
     """Enumeration of Livescore API endpoints."""
 
     FIXTURES_MATCHES = "fixtures/matches.json"
+    FIXTURES_LIST = "fixtures/list.json"
     COMPETITIONS_LIST = "competitions/list.json"
     COUNTRIES_LIST = "countries/list.json"
     LEAGUES_TABLE = "leagues/table.json"
@@ -468,6 +469,85 @@ class LivescoreClient:
         """
         tomorrow = datetime.now() + timedelta(days=1)
         return self.get_fixtures_by_date(tomorrow)
+
+    def get_fixtures_list(
+        self,
+        date: datetime | None = None,
+        competition_ids: list[str] | None = None,
+        country_id: str | None = None,
+        fetch_all_pages: bool = True,
+    ) -> list[Match]:
+        """
+        Get fixtures using the list endpoint with competition_id and country_id filtering.
+
+        This endpoint is more efficient for filtering by competition/country as it
+        provides these fields directly, avoiding the need for name-based heuristics.
+
+        Parameters
+        ----------
+        date : datetime or None, optional
+            The date to fetch fixtures for (defaults to tomorrow)
+        competition_ids : list[str] or None, optional
+            List of competition IDs to filter by
+        country_id : str or None, optional
+            Country ID to filter by
+        fetch_all_pages : bool, optional
+            Whether to fetch all pages (default: True)
+
+        Returns
+        -------
+        list[Match]
+            List of Match objects
+        """
+        if date is None:
+            date = datetime.now() + timedelta(days=1)
+
+        date_str = date.strftime("%Y-%m-%d")
+        all_matches = []
+        page = 1
+        max_pages = 10  # Safety limit
+
+        while page <= max_pages:
+            params: dict[str, Any] = {"date": date_str, "page": page}
+
+            if competition_ids:
+                # API accepts comma-separated competition IDs
+                params["competition_id"] = ",".join(competition_ids)
+
+            if country_id:
+                params["country_id"] = country_id
+
+            data = self._make_request(APIEndpoint.FIXTURES_LIST, params=params)
+
+            fixtures = self._safe_get_nested(data, "data", "fixtures", default=[])
+
+            # Handle case where fixtures might be at different path
+            if not fixtures:
+                fixtures = self._safe_get_nested(data, "data", default=[])
+                if not isinstance(fixtures, list):
+                    fixtures = []
+
+            if not fixtures:
+                break  # No more fixtures
+
+            for fixture in fixtures:
+                if not isinstance(fixture, dict):
+                    continue
+                try:
+                    match = self._parse_fixture(fixture)
+                    all_matches.append(match)
+                except (KeyError, ValueError, TypeError):
+                    # Skip malformed fixtures
+                    continue
+
+            # Check if there's a next page
+            next_page = self._safe_get_nested(data, "data", "next_page", default=False)
+            if not next_page or not fetch_all_pages:
+                break
+
+            page += 1
+
+        return all_matches
 
     def get_competitions(self, country_id: str | None = None) -> list[dict[str, Any]]:
         """

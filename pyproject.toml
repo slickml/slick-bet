@@ -67,7 +67,10 @@ help = "Run the betting screener for tomorrow's games"
 [tool.poe.tasks.run-top]
 shell = "slickbet --top ${k} $@"
 args = [
-    { name = "k", default = "10", options = ["--top", "-k"] },
+    { name = "k", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener and show top K betting opportunities"
 
@@ -81,8 +84,14 @@ help = "Run screener for a specific date (YYYY-MM-DD)"
 [tool.poe.tasks.run-days]
 shell = "slickbet --days ${days} --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "20", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "20", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for the next N days (default: 7)"
 
@@ -93,14 +102,20 @@ help = "Run screener for the next 7 days, show top 20"
 [tool.poe.tasks.run-major]
 shell = "slickbet --major-only --top ${top} $@"
 args = [
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for tomorrow's major league games only"
 
 [tool.poe.tasks.run-major-week]
 shell = "slickbet --days 7 --major-only --top ${top} $@"
 args = [
-    { name = "top", default = "20", options = ["--top", "-k"] },
+    { name = "top", default = "20", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for next 7 days, major leagues only"
 
@@ -108,56 +123,97 @@ help = "Run screener for next 7 days, major leagues only"
 [tool.poe.tasks.run-all]
 shell = "slickbet --days ${days} --all-leagues --top ${top} ${pdf:+--pdf }${pdf}"
 args = [
-    { name = "days", default = "3", options = ["--days", "-d"] },
-    { name = "top", default = "20", options = ["--top", "-k"] },
-    { name = "pdf", default = "", options = ["--pdf"] },
+    { name = "days", default = "3", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "20", options = [
+        "--top",
+        "-k",
+    ] },
+    { name = "pdf", default = "", options = [
+        "--pdf",
+    ] },
 ]
 help = "Run screener for ALL leagues (Major European + Persian Gulf)"
 
 [tool.poe.tasks.run-all-week]
 shell = "slickbet --days 7 --all-leagues --top ${top} $@"
 args = [
-    { name = "top", default = "30", options = ["--top", "-k"] },
+    { name = "top", default = "30", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for next 7 days, ALL leagues"
 
 [tool.poe.tasks.run-pl]
 shell = "slickbet --days ${days} --league 2 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Premier League only"
 
 [tool.poe.tasks.run-bundesliga]
 shell = "slickbet --days ${days} --league 1 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Bundesliga only"
 
 [tool.poe.tasks.run-laliga]
 shell = "slickbet --days ${days} --league 3 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for La Liga only"
 
 [tool.poe.tasks.run-seriea]
 shell = "slickbet --days ${days} --league 4 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Serie A only"
 
 [tool.poe.tasks.run-ligue1]
 shell = "slickbet --days ${days} --league 5 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Ligue 1 only"
 
@@ -165,32 +221,56 @@ help = "Run screener for Ligue 1 only"
 [tool.poe.tasks.run-gulf]
 shell = "slickbet --days ${days} --gulf-only --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Persian Gulf leagues (Saudi, Qatar, UAE)"
 
 [tool.poe.tasks.run-saudi]
 shell = "slickbet --days ${days} --league 313 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Saudi Pro League only"
 
 [tool.poe.tasks.run-qatar]
 shell = "slickbet --days ${days} --league 305 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for Qatar Stars League only"
 
 [tool.poe.tasks.run-uae]
 shell = "slickbet --days ${days} --league 354 --top ${top} $@"
 args = [
-    { name = "days", default = "7", options = ["--days", "-d"] },
-    { name = "top", default = "10", options = ["--top", "-k"] },
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
 ]
 help = "Run screener for UAE Pro League only"
 
@@ -202,35 +282,50 @@ help = "Backtest model on Premier League (4 weeks)"
 [tool.poe.tasks.backtest-bundesliga]
 shell = "slickbet backtest --competition 1 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on Bundesliga (Germany) for N weeks"
 
 [tool.poe.tasks.backtest-pl]
 shell = "slickbet backtest --competition 2 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on Premier League (England) for N weeks"
 
 [tool.poe.tasks.backtest-liga]
 shell = "slickbet backtest --competition 3 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on La Liga (Spain) for N weeks"
 
 [tool.poe.tasks.backtest-seriea]
 shell = "slickbet backtest --competition 4 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on Serie A (Italy) for N weeks"
 
 [tool.poe.tasks.backtest-ligue1]
 shell = "slickbet backtest --competition 5 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on Ligue 1 (France) for N weeks"
 
@@ -238,44 +333,65 @@ help = "Backtest on Ligue 1 (France) for N weeks"
 [tool.poe.tasks.backtest-saudi]
 shell = "slickbet backtest --competition 313 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on Saudi Pro League for N weeks"
 
 [tool.poe.tasks.backtest-qatar]
 shell = "slickbet backtest --competition 305 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on Qatar Stars League for N weeks"
 
 [tool.poe.tasks.backtest-uae]
 shell = "slickbet backtest --competition 354 --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on UAE Pro League for N weeks"
 
 [tool.poe.tasks.backtest-all]
 shell = "slickbet backtest-all --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on ALL major leagues with aggregated results"
 
 [tool.poe.tasks.backtest-gulf]
 shell = "slickbet backtest-all --gulf-only --weeks ${weeks} $@"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
 ]
 help = "Backtest on ALL Persian Gulf leagues with aggregated results"
 
 [tool.poe.tasks.backtest-all-global]
-shell = "slickbet backtest-all --include-gulf --weeks ${weeks} $@"
+shell = "slickbet backtest-all --include-gulf --weeks ${weeks} ${debug:+--debug}"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
+    { name = "debug", default = "", options = [
+        "--debug",
+    ] },
 ]
-help = "Backtest on ALL leagues (Major + Persian Gulf) with aggregated results"
+help = "Backtest on ALL leagues (Major + Persian Gulf) with aggregated results. Use --debug=1 to enable debug output."
 
 [tool.poe.tasks.backtest-json]
 cmd = "slickbet backtest --json"
@@ -331,7 +447,7 @@ help = "Fix code and run tests"
 # Ruff - Linter & Formatter
 # ============================================================================
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py310"
 src = ["src"]
 

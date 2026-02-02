@@ -279,6 +279,7 @@ class Backtester:
         to_date: datetime | None = None,
         min_probability: float = 0.0,
         verbose: bool = True,
+        debug: bool = False,
     ) -> BacktestResults:
         """
         Run backtest on historical data.
@@ -297,6 +298,8 @@ class Backtester:
             Minimum probability threshold for predictions
         verbose : bool, optional
             Print progress information
+        debug : bool, optional
+            Print detailed match-by-match predictions and results
 
         Returns
         -------
@@ -395,6 +398,10 @@ class Backtester:
                     no_draw_correct=no_draw_correct,
                 )
                 results.results.append(result)
+
+                # Debug output: show match details, prediction, and actual result
+                if debug:
+                    self._print_debug_match(result)
 
                 if verbose and (i + 1) % 10 == 0:
                     print(f"   Processed {i + 1}/{len(valid_matches)} matches...")
@@ -524,6 +531,59 @@ class Backtester:
             pass
 
         return match
+
+    def _print_debug_match(self, result: PredictionResult) -> None:
+        """
+        Print detailed debug information for a single match prediction.
+
+        Parameters
+        ----------
+        result : PredictionResult
+            The prediction result to display
+        """
+        match = result.match
+        pred = result.prediction
+
+        # Match header
+        print()
+        print("=" * 80)
+        print(f"📅 {match.date.strftime('%Y-%m-%d')} | {match.competition}")
+        print(f"🏠 {match.home_team.name} vs ✈️ {match.away_team.name}")
+        print("-" * 80)
+
+        # Actual result
+        home_score = match.home_score or 0
+        away_score = match.away_score or 0
+        actual_winner = result.actual_winner
+        print(f"⚽ ACTUAL RESULT: {home_score} - {away_score} ({actual_winner})")
+
+        # Our prediction
+        predicted_team = result.predicted_team
+        outcome_symbol = "✅" if result.is_correct else "❌"
+        print(
+            f"🎯 OUR PREDICTION: {outcome_symbol} {predicted_team} "
+            f"(Prob: {pred.probability:.1%}, Conf: {pred.confidence:.1%})"
+        )
+
+        # Prediction details
+        if pred.recommended_outcome == BetOutcome.HOME_WIN:
+            print(f"   → Bet on: {match.home_team.name} (Home Win)")
+        else:
+            print(f"   → Bet on: {match.away_team.name} (Away Win)")
+
+        # Double chance info
+        if pred.double_chance:
+            dc = pred.double_chance
+            best_type, best_prob = dc.best_double_chance
+            print(f"   → Best Double Chance: {best_type} ({best_prob:.1%})")
+
+        # Key reasoning (first 3 reasons)
+        if pred.reasoning:
+            print("   📝 Key Factors:")
+            for reason in pred.reasoning[:3]:
+                print(f"      • {reason}")
+
+        print("=" * 80)
 
 
 def format_backtest_report(results: BacktestResults) -> str:
