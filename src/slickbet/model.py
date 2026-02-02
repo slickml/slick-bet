@@ -274,9 +274,7 @@ class BettingModel:
         # Calculate draw risk based on how close the composite score is to 0
         # Matches with evenly-matched teams are more likely to draw
         # Now also considers bookmaker draw odds and PPG proximity
-        draw_risk = self._calculate_draw_risk(
-            composite_score, form_score, position_score, match
-        )
+        draw_risk = self._calculate_draw_risk(composite_score, form_score, position_score, match)
         if draw_risk > self.DRAW_RISK_THRESHOLD:
             reasoning.append(f"⚠️ High draw risk detected ({draw_risk:.1%})")
 
@@ -430,9 +428,7 @@ class BettingModel:
 
         score = self.HOME_ADVANTAGE * 2  # Normalize to contribute positively
 
-        reasons = [
-            f"Home advantage factor applied (+{self.HOME_ADVANTAGE:.0%} to home team)"
-        ]
+        reasons = [f"Home advantage factor applied (+{self.HOME_ADVANTAGE:.0%} to home team)"]
 
         return score, reasons
 
@@ -579,9 +575,7 @@ class BettingModel:
         score = max(-1.0, min(1.0, score))
 
         reasons.append(f"⚽ Goals/game: Home {home_attack:.2f}, Away {away_attack:.2f}")
-        reasons.append(
-            f"🛡️ Conceded/game: Home {home_defense:.2f}, Away {away_defense:.2f}"
-        )
+        reasons.append(f"🛡️ Conceded/game: Home {home_defense:.2f}, Away {away_defense:.2f}")
 
         if score > 0.15:
             reasons.append("→ Home team has stronger goal stats")
@@ -620,8 +614,7 @@ class BettingModel:
 
         if home_perf.home_games > 0 or away_perf.away_games > 0:
             reasons.append(
-                f"🏠 Home win rate at home: {home_rate:.0%} | "
-                f"Away win rate away: {away_rate:.0%}"
+                f"🏠 Home win rate at home: {home_rate:.0%} | Away win rate away: {away_rate:.0%}"
             )
 
         if score > 0.2:
@@ -658,9 +651,7 @@ class BettingModel:
         score = home_cs_rate - away_cs_rate
 
         if home_perf.matches_analyzed > 0 and away_perf.matches_analyzed > 0:
-            reasons.append(
-                f"🧤 Clean sheet rate: Home {home_cs_rate:.0%}, Away {away_cs_rate:.0%}"
-            )
+            reasons.append(f"🧤 Clean sheet rate: Home {home_cs_rate:.0%}, Away {away_cs_rate:.0%}")
 
         if home_cs_rate > 0.4:
             reasons.append("→ Home team defensively solid")
@@ -716,14 +707,10 @@ class BettingModel:
 
         # Add reasoning if significant
         if home_perf.ht_wins > 0 or away_perf.ht_wins > 0:
-            reasons.append(
-                f"⏱️ HT lead rate: Home {home_ht_lead:.0%}, Away {away_ht_lead:.0%}"
-            )
+            reasons.append(f"⏱️ HT lead rate: Home {home_ht_lead:.0%}, Away {away_ht_lead:.0%}")
 
         if home_perf.wins > 0 or away_perf.wins > 0:
-            reasons.append(
-                f"📈 Win rate: Home {home_win_rate:.0%}, Away {away_win_rate:.0%}"
-            )
+            reasons.append(f"📈 Win rate: Home {home_win_rate:.0%}, Away {away_win_rate:.0%}")
 
         if home_momentum > away_momentum + 0.1:
             reasons.append("→ Home team has stronger momentum")
@@ -786,9 +773,7 @@ class BettingModel:
                 implied_draw_prob = 1.0 / draw_odds
                 # Scale: if implied > 30%, increase draw factor
                 if implied_draw_prob > 0.30:
-                    odds_draw_factor = (
-                        implied_draw_prob - 0.26
-                    ) * 2  # Boost for high draw odds
+                    odds_draw_factor = (implied_draw_prob - 0.26) * 2  # Boost for high draw odds
                 elif implied_draw_prob < 0.22:
                     odds_draw_factor = -0.1  # Reduce for low draw odds
 

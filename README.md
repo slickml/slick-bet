@@ -195,9 +195,11 @@ Each prediction is assigned a grade based on backtest performance:
 
 ## 📊 Backtest Results
 
+### 1-Week Backtest Results
+
 Based on 1-week backtests across all leagues (103 matches):
 
-### Aggregated Results
+#### Aggregated Results
 - **Total Matches**: 103
 - **Correct Predictions**: 59
 - **Overall Accuracy**: 57.3%
@@ -205,7 +207,7 @@ Based on 1-week backtests across all leagues (103 matches):
 - **Accuracy (excl. draws)**: 81.9%
 - **Best Recommended Double Chance**: 87.4%
 
-### League Comparison
+#### League Comparison
 | League               | Matches | Accuracy | Excl. Draws | Best DC |
 | -------------------- | ------- | -------- | ----------- | ------- |
 | 🇮🇹 Serie A            | 8       | 87.5%    | **100.0%**  | 100.0%  |
@@ -221,12 +223,41 @@ Based on 1-week backtests across all leagues (103 matches):
 | 🇦🇪 UAE Pro League     | 7       | 57.1%    | **66.7%**   | 71.4%   |
 | 🇪🇸 La Liga            | 9       | 33.3%    | **60.0%**   | 77.8%   |
 
+### 12-Week Backtest Results
+
+Based on 12-week backtests across all leagues (979 matches):
+
+#### Aggregated Results
+- **Total Matches**: 979
+- **Correct Predictions**: 553
+- **Overall Accuracy**: 56.5%
+- **Draws Encountered**: 262 (26.8%)
+- **Accuracy (excl. draws)**: 77.1%
+- **Best Recommended Double Chance**: 83.2%
+
+#### League Comparison
+| League               | Matches | Accuracy | Excl. Draws | Best DC |
+| -------------------- | ------- | -------- | ----------- | ------- |
+| 🇵🇹 Primeira Liga      | 79      | 64.6%    | **85.0%**   | 88.6%   |
+| 🇸🇦 Saudi Pro League   | 94      | 63.8%    | **82.2%**   | 86.2%   |
+| 🇹🇷 Super Lig          | 71      | 49.3%    | **81.4%**   | 88.7%   |
+| 🇩🇪 Bundesliga         | 89      | 58.4%    | **81.2%**   | 86.5%   |
+| 🇮🇹 Serie A            | 118     | 60.2%    | **78.0%**   | 83.1%   |
+| 🇫🇷 Ligue 1            | 72      | 62.5%    | **77.6%**   | 81.9%   |
+| 🇪🇸 La Liga            | 98      | 57.1%    | **76.7%**   | 82.7%   |
+| 🇳🇱 Eredivisie         | 79      | 50.6%    | **75.5%**   | 83.5%   |
+| 🇦🇪 UAE Pro League     | 49      | 55.1%    | **73.0%**   | 79.6%   |
+| 🇶🇦 Qatar Stars League | 29      | 62.1%    | **72.0%**   | 75.9%   |
+| 🇬🇧 Premier League     | 129     | 48.8%    | **70.8%**   | 79.8%   |
+| 🇧🇪 Belgian Pro League | 72      | 48.6%    | **68.6%**   | 77.8%   |
+
 ### Key Findings
-- **Overall accuracy (excluding draws)**: 81.9% across all leagues
-- **Double Chance** is the safest bet type with 87.4% accuracy
-- **Serie A** and **Primeira Liga** show perfect accuracy when excluding draws
-- **Draw rate**: 30.1% of matches ended in draws - use Double Chance for safer bets
-- **Best leagues for predictions**: Serie A, Primeira Liga, Bundesliga, Saudi Pro League
+- **1-week results** show higher accuracy (81.9% excl. draws) but smaller sample size (103 matches)
+- **12-week results** provide more reliable statistics with 77.1% accuracy (excl. draws) across 979 matches
+- **Double Chance** is the safest bet type with 83.2% accuracy (12-week) and 87.4% (1-week)
+- **Primeira Liga** and **Saudi Pro League** consistently show high accuracy across both time periods
+- **Draw rate**: 26.8% (12-week) to 30.1% (1-week) - use Double Chance for safer bets
+- **Best leagues for predictions**: Primeira Liga, Saudi Pro League, Super Lig, Bundesliga
 
 ## 💻 Direct CLI Usage
 
@@ -323,15 +354,20 @@ print(f"Best Double Chance: {results.best_double_chance_accuracy:.1%}")
 slick-bet/
 ├── src/
 │   └── slickbet/
-│       ├── __init__.py    # Package exports
-│       ├── api.py         # Livescore API client
-│       ├── model.py       # 9-factor betting model
-│       ├── screener.py    # Main screener logic
-│       ├── backtest.py    # Backtesting module
-│       └── cli.py         # Command-line interface
-├── tests/                 # Test files
-├── pyproject.toml         # Project config (uv, poe, ruff, mypy)
-├── uv.lock                # Lock file (auto-generated)
+│       ├── __init__.py      # Package exports
+│       ├── api.py           # Livescore API client
+│       ├── model.py         # 9-factor betting model
+│       ├── screener.py      # Main screener logic
+│       ├── backtest.py      # Backtesting module
+│       ├── cli.py           # Command-line interface
+│       └── pdf_export.py    # PDF report generation
+├── tests/                   # Test files
+│   ├── __init__.py
+│   └── test_model.py
+├── assets/
+│   └── predictions/        # Generated PDF reports
+├── pyproject.toml          # Project config (uv, poe, ruff, mypy)
+├── uv.lock                 # Lock file (auto-generated)
 ├── LICENSE
 └── README.md
 ```

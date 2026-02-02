@@ -323,13 +323,9 @@ class LivescoreClient:
             )
 
         self.session = requests.Session()
-        self.session.headers.update(
-            {"Accept": "application/json", "User-Agent": "SlickBet/1.0"}
-        )
+        self.session.headers.update({"Accept": "application/json", "User-Agent": "SlickBet/1.0"})
 
-    def _make_request(
-        self, endpoint: APIEndpoint | str, params: dict | None = None
-    ) -> dict:
+    def _make_request(self, endpoint: APIEndpoint | str, params: dict | None = None) -> dict:
         """
         Make an authenticated request to the API.
 
@@ -921,9 +917,7 @@ class LivescoreClient:
 
         return stats
 
-    def get_head_to_head(
-        self, home_team_id: str, away_team_id: str, limit: int = 5
-    ) -> dict:
+    def get_head_to_head(self, home_team_id: str, away_team_id: str, limit: int = 5) -> dict:
         """
         Get head-to-head statistics between two teams.
 
@@ -1011,9 +1005,7 @@ class LivescoreClient:
         MatchStatistics
             MatchStatistics object with available stats
         """
-        data = self._make_request(
-            APIEndpoint.SCORES_MATCH_STATS, params={"match_id": match_id}
-        )
+        data = self._make_request(APIEndpoint.SCORES_MATCH_STATS, params={"match_id": match_id})
 
         stats_data = self._safe_get_nested(data, "data", default={})
         if not isinstance(stats_data, dict):
@@ -1333,21 +1325,9 @@ class LivescoreClient:
             pre_odds_data = {}
 
         # Try to get odds from various locations
-        home_odds = (
-            pre_odds_data.get("1")
-            or fixture.get("odds_home")
-            or fixture.get("home_odds")
-        )
-        draw_odds = (
-            pre_odds_data.get("X")
-            or fixture.get("odds_draw")
-            or fixture.get("draw_odds")
-        )
-        away_odds = (
-            pre_odds_data.get("2")
-            or fixture.get("odds_away")
-            or fixture.get("away_odds")
-        )
+        home_odds = pre_odds_data.get("1") or fixture.get("odds_home") or fixture.get("home_odds")
+        draw_odds = pre_odds_data.get("X") or fixture.get("odds_draw") or fixture.get("draw_odds")
+        away_odds = pre_odds_data.get("2") or fixture.get("odds_away") or fixture.get("away_odds")
 
         pre_odds = Odds(
             home_win=home_odds,

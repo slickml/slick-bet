@@ -130,9 +130,7 @@ class BacktestResults:
     @property
     def high_confidence_accuracy_excl_draws(self) -> float:
         """Accuracy for high confidence predictions, excluding draws."""
-        high_conf = [
-            r for r in self.results if r.confidence > 0.3 and r.actual_outcome != "D"
-        ]
+        high_conf = [r for r in self.results if r.confidence > 0.3 and r.actual_outcome != "D"]
         if not high_conf:
             return 0.0
         return sum(1 for r in high_conf if r.is_correct) / len(high_conf)
@@ -166,9 +164,7 @@ class BacktestResults:
     @property
     def high_probability_accuracy_excl_draws(self) -> float:
         """Accuracy for high probability predictions (>60%), excluding draws."""
-        high_prob = [
-            r for r in self.results if r.probability > 0.60 and r.actual_outcome != "D"
-        ]
+        high_prob = [r for r in self.results if r.probability > 0.60 and r.actual_outcome != "D"]
         if not high_prob:
             return 0.0
         return sum(1 for r in high_prob if r.is_correct) / len(high_prob)
@@ -192,18 +188,14 @@ class BacktestResults:
         """Accuracy for 1X (Home or Draw) double chance bets."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.home_or_draw_correct) / len(
-            self.results
-        )
+        return sum(1 for r in self.results if r.home_or_draw_correct) / len(self.results)
 
     @property
     def away_or_draw_accuracy(self) -> float:
         """Accuracy for X2 (Away or Draw) double chance bets."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.away_or_draw_correct) / len(
-            self.results
-        )
+        return sum(1 for r in self.results if r.away_or_draw_correct) / len(self.results)
 
     @property
     def no_draw_accuracy(self) -> float:
@@ -217,9 +209,7 @@ class BacktestResults:
         """Accuracy when following the recommended double chance bet."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.best_double_chance_correct) / len(
-            self.results
-        )
+        return sum(1 for r in self.results if r.best_double_chance_correct) / len(self.results)
 
     def by_probability_threshold(self, threshold: float) -> "BacktestResults":
         """Filter results by minimum probability threshold."""
@@ -332,9 +322,7 @@ class Backtester:
 
         # Filter to only finished matches with clear outcomes
         valid_matches = [
-            m
-            for m in matches
-            if m.status == "FINISHED" and m.outcomes.full_time in ("1", "X", "2")
+            m for m in matches if m.status == "FINISHED" and m.outcomes.full_time in ("1", "X", "2")
         ]
 
         if verbose:
@@ -445,8 +433,7 @@ class Backtester:
                 matches = [
                     m
                     for m in matches
-                    if from_date <= m.date <= to_date
-                    and m.competition_id == competition_id
+                    if from_date <= m.date <= to_date and m.competition_id == competition_id
                 ]
 
                 all_matches.extend(matches)
