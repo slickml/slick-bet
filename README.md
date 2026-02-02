@@ -378,7 +378,7 @@ This tool is for **educational and entertainment purposes only**.
 
 - Past performance does not guarantee future results
 - Sports betting involves risk of financial loss
-- Always gamble responsibly and within your means
+- Always predict responsibly and within your means
 - Check local laws regarding sports betting in your jurisdiction
 
 ## License

@@ -200,7 +200,7 @@ def export_screener_to_pdf(
             "<i><b>⚠️ DISCLAIMER:</b> This tool is for educational and research purposes only. "
             "We are not providing financial advice, and we are not responsible for any financial "
             "decisions made based on this information. Sports betting involves risk of financial loss. "
-            "Always gamble responsibly and within your means.</i>",
+            "Always predict responsibly and within your means.</i>",
             disclaimer_style,
         )
     )
@@ -256,9 +256,7 @@ def export_screener_to_pdf(
             # Match header
             home_pos = f"({match.home_position})" if match.home_position else ""
             away_pos = f"({match.away_position})" if match.away_position else ""
-            match_title = (
-                f"#{i} {match.home_team.name} {home_pos} vs {match.away_team.name} {away_pos}"
-            )
+            match_title = f"#{i} {match.home_team.name} {home_pos} vs {match.away_team.name} {away_pos}"
             story.append(Paragraph(match_title, subheading_style))
             story.append(
                 Paragraph(
@@ -289,15 +287,29 @@ def export_screener_to_pdf(
                     bet_desc = "Either team wins (no draw)"
                     short_bet = "12"
 
-                story.append(Paragraph(f"<b>⭐ Recommended Bet: {short_bet}</b>", styles["Normal"]))
+                story.append(
+                    Paragraph(
+                        f"<b>⭐ Recommended Bet: {short_bet}</b>", styles["Normal"]
+                    )
+                )
                 story.append(Paragraph(f"   {bet_desc}", styles["Normal"]))
-                story.append(Paragraph(f"   Probability: <b>{best_prob:.1%}</b>", styles["Normal"]))
+                story.append(
+                    Paragraph(
+                        f"   Probability: <b>{best_prob:.1%}</b>", styles["Normal"]
+                    )
+                )
                 story.append(Spacer(1, 0.05 * inch))
 
             # Win Bet
-            story.append(Paragraph(f"<b>💰 Win Bet:</b> {bet_on.upper()} TO WIN", styles["Normal"]))
             story.append(
-                Paragraph(f"   Probability: <b>{pred.probability:.1%}</b>", styles["Normal"])
+                Paragraph(
+                    f"<b>💰 Win Bet:</b> {bet_on.upper()} TO WIN", styles["Normal"]
+                )
+            )
+            story.append(
+                Paragraph(
+                    f"   Probability: <b>{pred.probability:.1%}</b>", styles["Normal"]
+                )
             )
             story.append(Spacer(1, 0.1 * inch))
 
@@ -313,11 +325,15 @@ def export_screener_to_pdf(
             if pred.odds_score != 0:
                 analysis_data.append(["Odds Score", f"{pred.odds_score:+.2f}"])
             if pred.goal_score != 0:
-                analysis_data.append(["Goals (Attack/Defense)", f"{pred.goal_score:+.2f}"])
+                analysis_data.append(
+                    ["Goals (Attack/Defense)", f"{pred.goal_score:+.2f}"]
+                )
             if pred.venue_form_score != 0:
                 analysis_data.append(["Venue Form", f"{pred.venue_form_score:+.2f}"])
             if pred.defense_score != 0:
-                analysis_data.append(["Defense (Clean Sheets)", f"{pred.defense_score:+.2f}"])
+                analysis_data.append(
+                    ["Defense (Clean Sheets)", f"{pred.defense_score:+.2f}"]
+                )
             if pred.momentum_score != 0:
                 analysis_data.append(["Momentum", f"{pred.momentum_score:+.2f}"])
 
@@ -525,7 +541,9 @@ def export_backtest_to_pdf(
         ],
     ]
 
-    home_away_table = Table(home_away_data, colWidths=[1.5 * inch, 1 * inch, 1 * inch, 1.5 * inch])
+    home_away_table = Table(
+        home_away_data, colWidths=[1.5 * inch, 1 * inch, 1 * inch, 1.5 * inch]
+    )
     home_away_table.setStyle(
         TableStyle(
             [
@@ -799,7 +817,9 @@ def export_backtest_all_to_pdf(
     story.append(Spacer(1, 0.1 * inch))
 
     # Sort by accuracy excluding draws
-    sorted_leagues = sorted(league_summaries, key=lambda x: x["accuracy_excl_draws"], reverse=True)
+    sorted_leagues = sorted(
+        league_summaries, key=lambda x: x["accuracy_excl_draws"], reverse=True
+    )
 
     league_data = [
         ["League", "Matches", "Accuracy", "Excl. Draws", "Best DC"],
@@ -847,7 +867,7 @@ def export_backtest_all_to_pdf(
     story.append(
         Paragraph(
             "<i>⚠️ Disclaimer: This tool is for educational and entertainment purposes only. "
-            "Past performance does not guarantee future results. Always gamble responsibly.</i>",
+            "Past performance does not guarantee future results. Always predict responsibly.</i>",
             styles["Normal"],
         )
     )
