@@ -60,6 +60,35 @@ GULF_LEAGUE_IDS = {
     "354": "🇦🇪 UAE Pro League",
 }
 
+# African leagues
+AFRICAN_LEAGUE_NAMES = [
+    "algeria",
+    "senegal",
+    "ghana",
+    "nigeria",
+    "npfl",
+    "egypt",
+    "south africa",
+    "morocco",
+    "botola",
+    "tanzania",
+    "angola",
+    "garibola",
+]
+
+# Competition IDs for African leagues
+AFRICAN_LEAGUE_IDS = {
+    "35": "🇩🇿 Algeria Ligue 1",
+    "84": "🇸🇳 Senegal Ligue 1",
+    "86": "🇬🇭 Ghana Premier League",
+    "78": "🇳🇬 Nigeria NPFL",
+    "36": "🇪🇬 Egypt Premier League",
+    "41": "🇿🇦 South Africa Premier League",
+    "38": "🇲🇦 Morocco Botola Pro",
+    "80": "🇹🇿 Tanzania Premier League",
+    "449": "🇦🇴 Angola Garibola",
+}
+
 # All supported league IDs (for reference)
 ALL_LEAGUE_IDS = {
     # Major European
@@ -77,6 +106,16 @@ ALL_LEAGUE_IDS = {
     "313": "🇸🇦 Saudi Pro League",
     "305": "🇶🇦 Qatar Stars League",
     "354": "🇦🇪 UAE Pro League",
+    # African
+    "35": "🇩🇿 Algeria Ligue 1",
+    "84": "🇸🇳 Senegal Ligue 1",
+    "86": "🇬🇭 Ghana Premier League",
+    "78": "🇳🇬 Nigeria NPFL",
+    "36": "🇪🇬 Egypt Premier League",
+    "41": "🇿🇦 South Africa Premier League",
+    "38": "🇲🇦 Morocco Botola Pro",
+    "80": "🇹🇿 Tanzania Premier League",
+    "449": "🇦🇴 Angola Garibola",
 }
 
 # Cup competition IDs to exclude (we only want league matches)
@@ -149,7 +188,10 @@ class ScreenerConfig:
     # Only show Persian Gulf leagues (Saudi Pro League, Qatar Stars League, UAE Pro League)
     gulf_leagues_only: bool = False
 
-    # Show all supported leagues (Major European + Persian Gulf)
+    # Only show African leagues
+    african_leagues_only: bool = False
+
+    # Show all supported leagues (Major European + Minor European + Persian Gulf + African)
     all_leagues: bool = False
 
     def __post_init__(self):
@@ -332,10 +374,15 @@ class BettingScreener:
             competition_ids = list(MAJOR_LEAGUE_IDS)
         elif self.config.gulf_leagues_only:
             competition_ids = list(GULF_LEAGUE_IDS)
+        elif self.config.african_leagues_only:
+            competition_ids = list(AFRICAN_LEAGUE_IDS)
         elif self.config.all_leagues:
             # Combine all supported league IDs
             competition_ids = (
-                list(MAJOR_LEAGUE_IDS) + list(MINOR_LEAGUE_IDS) + list(GULF_LEAGUE_IDS)
+                list(MAJOR_LEAGUE_IDS)
+                + list(MINOR_LEAGUE_IDS)
+                + list(GULF_LEAGUE_IDS)
+                + list(AFRICAN_LEAGUE_IDS)
             )
 
         if competition_ids:
@@ -427,19 +474,35 @@ class BettingScreener:
                     "   ℹ️  Persian Gulf leagues: Saudi Pro League, Qatar Stars League, UAE Pro League"
                 )
 
-        # Filter by ALL supported leagues (Major + Minor + Persian Gulf)
+        # Filter by African leagues only
+        elif self.config.african_leagues_only:
+            filtered = [m for m in filtered if self._is_african_league(m)]
+            if filtered:
+                leagues_found = set(f"{m.competition} ({m.country})" for m in filtered)
+                print(f"   🌍 African leagues: {', '.join(sorted(leagues_found))}")
+            else:
+                print("   ⚠️  No African league fixtures found in API")
+                print(
+                    "   ℹ️  African leagues: Algeria, Senegal, Ghana, Nigeria, Egypt, South Africa, Morocco, Tanzania, Angola"
+                )
+
+        # Filter by ALL supported leagues (Major + Minor + Persian Gulf + African)
         elif self.config.all_leagues:
             filtered = [
                 m
                 for m in filtered
-                if self._is_major_league(m) or self._is_minor_league(m) or self._is_gulf_league(m)
+                if self._is_major_league(m)
+                or self._is_minor_league(m)
+                or self._is_gulf_league(m)
+                or self._is_african_league(m)
             ]
             if filtered:
                 major = [m for m in filtered if self._is_major_league(m)]
                 minor = [m for m in filtered if self._is_minor_league(m)]
                 gulf = [m for m in filtered if self._is_gulf_league(m)]
+                african = [m for m in filtered if self._is_african_league(m)]
                 print(
-                    f"   🌍 All leagues: {len(major)} Major European + {len(minor)} Minor European + {len(gulf)} Persian Gulf matches"
+                    f"   🌍 All leagues: {len(major)} Major European + {len(minor)} Minor European + {len(gulf)} Persian Gulf + {len(african)} African matches"
                 )
             else:
                 print("   ⚠️  No supported league fixtures found")
@@ -515,6 +578,19 @@ class BettingScreener:
 
         # Check by competition ID (most reliable)
         return match.competition_id in MINOR_LEAGUE_IDS
+
+    def _is_african_league(self, match: Match) -> bool:
+        """
+        Check if a match is from one of the African leagues.
+
+        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        """
+        # Exclude cup competitions
+        if self._is_cup_competition(match):
+            return False
+
+        # Check by competition ID (most reliable)
+        return match.competition_id in AFRICAN_LEAGUE_IDS
 
     def _enrich_matches(self, matches: list[Match]) -> list[Match]:
         """

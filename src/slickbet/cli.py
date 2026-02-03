@@ -199,6 +199,18 @@ Examples:
     )
 
     backtest_all_parser.add_argument(
+        "--include-african",
+        action="store_true",
+        help="Include African leagues in backtest",
+    )
+
+    backtest_all_parser.add_argument(
+        "--african-only",
+        action="store_true",
+        help="Only test African leagues",
+    )
+
+    backtest_all_parser.add_argument(
         "--pdf",
         type=str,
         metavar="PATH",
@@ -287,9 +299,15 @@ Examples:
     )
 
     filter_group.add_argument(
+        "--african-only",
+        action="store_true",
+        help="Only show African leagues (Algeria, Senegal, Ghana, Nigeria, Egypt, South Africa, Morocco, Tanzania, Angola)",
+    )
+
+    filter_group.add_argument(
         "--all-leagues",
         action="store_true",
-        help="Show all supported leagues (Major European + Persian Gulf)",
+        help="Show all supported leagues (Major European + Minor European + Persian Gulf + African)",
     )
 
     filter_group.add_argument(
@@ -297,7 +315,7 @@ Examples:
         type=str,
         action="append",
         metavar="ID",
-        help="Filter by league ID: 1=Bundesliga, 2=PL, 3=LaLiga, 4=SerieA, 5=Ligue1, 313=Saudi, 305=Qatar, 354=UAE",
+        help="Filter by league ID: 1=Bundesliga, 2=PL, 3=LaLiga, 4=SerieA, 5=Ligue1, 313=Saudi, 305=Qatar, 354=UAE, 35=Algeria, 84=Senegal, 86=Ghana, 78=Nigeria, 36=Egypt, 41=SouthAfrica, 38=Morocco, 80=Tanzania, 449=Angola",
     )
 
     # Output options
@@ -546,17 +564,43 @@ def run_backtest_all(args: argparse.Namespace) -> int:
         ("354", "🇦🇪 UAE Pro League", "UAE"),
     ]
 
+    # African leagues
+    AFRICAN_LEAGUES = [
+        ("35", "🇩🇿 Algeria Ligue 1", "Algeria"),
+        ("84", "🇸🇳 Senegal Ligue 1", "Senegal"),
+        ("86", "🇬🇭 Ghana Premier League", "Ghana"),
+        ("78", "🇳🇬 Nigeria NPFL", "Nigeria"),
+        ("36", "🇪🇬 Egypt Premier League", "Egypt"),
+        ("41", "🇿🇦 South Africa Premier League", "South Africa"),
+        ("38", "🇲🇦 Morocco Botola Pro", "Morocco"),
+        ("80", "🇹🇿 Tanzania Premier League", "Tanzania"),
+        ("449", "🇦🇴 Angola Garibola", "Angola"),
+    ]
+
     # Determine which leagues to test
     include_gulf = getattr(args, "include_gulf", False)
     gulf_only = getattr(args, "gulf_only", False)
+    include_african = getattr(args, "include_african", False)
+    african_only = getattr(args, "african_only", False)
 
     if gulf_only:
         LEAGUES = GULF_LEAGUES
         league_type = "Persian Gulf"
+    elif african_only:
+        LEAGUES = AFRICAN_LEAGUES
+        league_type = "African"
+    elif include_gulf and include_african:
+        # Include Major + Minor European + Persian Gulf + African
+        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + GULF_LEAGUES + AFRICAN_LEAGUES
+        league_type = "ALL (Major + Minor European + Persian Gulf + African)"
     elif include_gulf:
         # Include Major + Minor European + Persian Gulf
         LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + GULF_LEAGUES
         league_type = "ALL (Major + Minor European + Persian Gulf)"
+    elif include_african:
+        # Include Major + Minor European + African
+        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + AFRICAN_LEAGUES
+        league_type = "ALL (Major + Minor European + African)"
     else:
         # Default: Major + Minor European (for backtest-all-global)
         LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES
@@ -753,6 +797,7 @@ def run_screener(args: argparse.Namespace) -> int:
         competition_ids=args.league or [],
         major_leagues_only=args.major_only,
         gulf_leagues_only=getattr(args, "gulf_only", False),
+        african_leagues_only=getattr(args, "african_only", False),
         all_leagues=getattr(args, "all_leagues", False),
     )
 

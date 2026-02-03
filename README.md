@@ -10,6 +10,7 @@ A Python-based betting screener for soccer games using the Livescore API. Fetche
 - 🏆 **Major European Leagues** - Bundesliga, Premier League, La Liga, Serie A, Ligue 1
 - 🌍 **Minor European Leagues** - Belgian Pro League, Primeira Liga, Super Lig, Eredivisie
 - 🏟️ **Persian Gulf Leagues** - Saudi Pro League, Qatar Stars League, UAE Pro League
+- 🌍 **African Leagues** - Algeria, Senegal, Ghana, Nigeria, Egypt, South Africa, Morocco, Tanzania, Angola
 - 🎯 **Confidence Grades** - Visual indicators (🔥 HIGH VALUE, ✅ GOOD BET, 👍 DECENT, ⚠️ RISKY)
 - 📈 **Backtesting** - Validate model accuracy against historical data
 - 💻 **CLI Interface** - Easy-to-use command-line tool
@@ -60,7 +61,7 @@ poe backtest-all-global --weeks=4
 
 ### Screener Commands
 
-#### All Leagues (Major + Minor European + Persian Gulf)
+#### All Leagues (Major + Minor European + Persian Gulf + African)
 | Command                | Description                        |
 | ---------------------- | ---------------------------------- |
 | `poe run-all --days N` | Screen ALL leagues for next N days |
@@ -85,6 +86,11 @@ poe backtest-all-global --weeks=4
 | `poe run-qatar --days N` | 🇶🇦 Qatar Stars League only                  |
 | `poe run-uae --days N`   | 🇦🇪 UAE Pro League only                      |
 
+#### African Leagues
+| Command                    | Description                            |
+| -------------------------- | -------------------------------------- |
+| `poe run-african --days N` | Screen all African leagues for N days  |
+
 #### Basic Commands
 | Command                 | Description                      |
 | ----------------------- | -------------------------------- |
@@ -99,7 +105,7 @@ poe backtest-all-global --weeks=4
 | --------------------------------------------- | ------------------------------------------------------------ |
 | `poe backtest-all --weeks N`                  | Backtest ALL major + minor European leagues                  |
 | `poe backtest-gulf --weeks N`                 | Backtest ALL Persian Gulf leagues                            |
-| `poe backtest-all-global --weeks N`           | Backtest ALL leagues (Major + Minor European + Persian Gulf) |
+| `poe backtest-all-global --weeks N`           | Backtest ALL leagues (Major + Minor European + Persian Gulf + African) |
 | `poe backtest-all-global --weeks N --debug=1` | Same as above with detailed match-by-match debug output      |
 
 **Note**: Add `--debug=1` to any backtest command (or `--debug` for direct CLI usage) to see detailed match-by-match information including:
@@ -159,6 +165,19 @@ poe backtest-all-global --weeks=4
 | 313 | Saudi Pro League   | 🇸🇦 Saudi Arabia |
 | 305 | Qatar Stars League | 🇶🇦 Qatar        |
 | 354 | UAE Pro League     | 🇦🇪 UAE          |
+
+### African Leagues
+| ID  | League                  | Country         |
+| --- | ----------------------- | --------------- |
+| 35  | Ligue 1                 | 🇩🇿 Algeria      |
+| 84  | Ligue 1                 | 🇸🇳 Senegal      |
+| 86  | Premier League          | 🇬🇭 Ghana        |
+| 78  | NPFL                    | 🇳🇬 Nigeria      |
+| 36  | Premier League          | 🇪🇬 Egypt        |
+| 41  | Premier League          | 🇿🇦 South Africa |
+| 38  | Botola Pro              | 🇲🇦 Morocco      |
+| 80  | Premier League          | 🇹🇿 Tanzania     |
+| 449 | Garibola                | 🇦🇴 Angola       |
 
 Use `slickbet competitions --country <name>` to find more competition IDs.
 
@@ -270,7 +289,8 @@ slickbet --days 5                 # Screen next 5 days
 # League filters
 slickbet --major-only             # Major European leagues only
 slickbet --gulf-only              # Persian Gulf leagues only
-slickbet --all-leagues            # All supported leagues (Major + Minor European + Persian Gulf)
+slickbet --african-only           # African leagues only
+slickbet --all-leagues            # All supported leagues (Major + Minor European + Persian Gulf + African)
 slickbet --league 2               # Specific league by ID
 
 # Probability filters
@@ -290,8 +310,10 @@ slickbet backtest --competition 2 --weeks 4 --debug  # With detailed match-by-ma
 slickbet backtest-all --weeks 4                 # All major + minor European leagues
 slickbet backtest-all --weeks 4 --pdf           # Export aggregated results to PDF
 slickbet backtest-all --gulf-only --weeks 4     # All Persian Gulf leagues
+slickbet backtest-all --african-only --weeks 4  # All African leagues
 slickbet backtest-all --include-gulf --weeks 4  # Major + Minor European + Persian Gulf
-slickbet backtest-all --include-gulf --weeks 4 --debug  # With detailed match-by-match debug output
+slickbet backtest-all --include-gulf --include-african --weeks 4  # Major + Minor European + Persian Gulf + African
+slickbet backtest-all --include-gulf --include-african --weeks 4 --debug  # With detailed match-by-match debug output
 ```
 
 ## 🐍 Python API
