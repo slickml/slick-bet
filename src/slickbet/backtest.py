@@ -130,7 +130,9 @@ class BacktestResults:
     @property
     def high_confidence_accuracy_excl_draws(self) -> float:
         """Accuracy for high confidence predictions, excluding draws."""
-        high_conf = [r for r in self.results if r.confidence > 0.3 and r.actual_outcome != "D"]
+        high_conf = [
+            r for r in self.results if r.confidence > 0.3 and r.actual_outcome != "D"
+        ]
         if not high_conf:
             return 0.0
         return sum(1 for r in high_conf if r.is_correct) / len(high_conf)
@@ -164,7 +166,9 @@ class BacktestResults:
     @property
     def high_probability_accuracy_excl_draws(self) -> float:
         """Accuracy for high probability predictions (>60%), excluding draws."""
-        high_prob = [r for r in self.results if r.probability > 0.60 and r.actual_outcome != "D"]
+        high_prob = [
+            r for r in self.results if r.probability > 0.60 and r.actual_outcome != "D"
+        ]
         if not high_prob:
             return 0.0
         return sum(1 for r in high_prob if r.is_correct) / len(high_prob)
@@ -188,14 +192,18 @@ class BacktestResults:
         """Accuracy for 1X (Home or Draw) double chance bets."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.home_or_draw_correct) / len(self.results)
+        return sum(1 for r in self.results if r.home_or_draw_correct) / len(
+            self.results
+        )
 
     @property
     def away_or_draw_accuracy(self) -> float:
         """Accuracy for X2 (Away or Draw) double chance bets."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.away_or_draw_correct) / len(self.results)
+        return sum(1 for r in self.results if r.away_or_draw_correct) / len(
+            self.results
+        )
 
     @property
     def no_draw_accuracy(self) -> float:
@@ -209,7 +217,9 @@ class BacktestResults:
         """Accuracy when following the recommended double chance bet."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.best_double_chance_correct) / len(self.results)
+        return sum(1 for r in self.results if r.best_double_chance_correct) / len(
+            self.results
+        )
 
     def by_probability_threshold(self, threshold: float) -> "BacktestResults":
         """Filter results by minimum probability threshold."""
@@ -322,7 +332,9 @@ class Backtester:
 
         # Filter to only finished matches with clear outcomes
         valid_matches = [
-            m for m in matches if m.status == "FINISHED" and m.outcomes.full_time in ("1", "X", "2")
+            m
+            for m in matches
+            if m.status == "FINISHED" and m.outcomes.full_time in ("1", "X", "2")
         ]
 
         if verbose:
@@ -344,7 +356,7 @@ class Backtester:
                 match = self._historical_to_match(hist_match)
 
                 # Enrich with stats (this simulates what we'd do pre-match)
-                match = self._enrich_for_backtest(match, hist_match.date)
+                match = self._enrich_for_backtest(match, hist_match.date, verbose=debug)
 
                 # Generate prediction
                 prediction = self.model.predict(match)
@@ -401,6 +413,28 @@ class Backtester:
 
         if verbose:
             print(f"   Completed {len(results.results)} predictions")
+            # Count how many matches had statistics available
+            matches_with_stats = 0
+            matches_without_stats = 0
+            for result in results.results:
+                pred = result.prediction
+                if pred.match_stats_used:
+                    matches_with_stats += 1
+                else:
+                    matches_without_stats += 1
+
+            if matches_with_stats > 0 or matches_without_stats > 0:
+                total = matches_with_stats + matches_without_stats
+                stats_pct = (matches_with_stats / total * 100) if total > 0 else 0
+                print(
+                    f"   📊 Match statistics: {matches_with_stats}/{total} "
+                    f"({stats_pct:.1f}%) had stats available"
+                )
+                if matches_without_stats > 0:
+                    print(
+                        f"   ⚠️  Note: {matches_without_stats} matches had no stats "
+                        f"(common for older matches or certain leagues)"
+                    )
             print()
 
         return results
@@ -433,7 +467,8 @@ class Backtester:
                 matches = [
                     m
                     for m in matches
-                    if from_date <= m.date <= to_date and m.competition_id == competition_id
+                    if from_date <= m.date <= to_date
+                    and m.competition_id == competition_id
                 ]
 
                 all_matches.extend(matches)
@@ -463,12 +498,23 @@ class Backtester:
             pre_odds=hist.pre_odds,
         )
 
-    def _enrich_for_backtest(self, match: Match, match_date: datetime) -> Match:
+    def _enrich_for_backtest(
+        self, match: Match, match_date: datetime, verbose: bool = False
+    ) -> Match:
         """
         Enrich match with stats for backtesting.
 
         Note: For a true backtest, we should only use data available
         BEFORE the match date. This is a simplified version.
+
+        Parameters
+        ----------
+        match : Match
+            Match to enrich
+        match_date : datetime
+            Date of the match
+        verbose : bool, optional
+            Print debug information about statistics availability
         """
         home_id = match.home_team.id if match.home_team else ""
         away_id = match.away_team.id if match.away_team else ""
@@ -509,10 +555,33 @@ class Backtester:
 
         try:
             # Get detailed performance stats (goals, clean sheets, etc.)
+            # This includes match statistics (xG, shots, possession, etc.)
             if home_id:
-                match.home_performance = self.client.get_team_performance_stats(home_id)
+                match.home_performance = self.client.get_team_performance_stats(
+                    home_id, num_matches=10, verbose=verbose
+                )
             if away_id:
-                match.away_performance = self.client.get_team_performance_stats(away_id)
+                match.away_performance = self.client.get_team_performance_stats(
+                    away_id, num_matches=10, verbose=verbose
+                )
+
+            # Debug: Check if match statistics are available
+            if verbose:
+                home_stats = (
+                    match.home_performance.matches_with_stats
+                    if match.home_performance
+                    else 0
+                )
+                away_stats = (
+                    match.away_performance.matches_with_stats
+                    if match.away_performance
+                    else 0
+                )
+                if home_stats == 0 or away_stats == 0:
+                    print(
+                        f"   ⚠️  Match stats: Home {home_stats}, Away {away_stats} "
+                        f"(stats may not be available for historical matches)"
+                    )
         except Exception:
             # Catch all exceptions during performance stats retrieval
             pass

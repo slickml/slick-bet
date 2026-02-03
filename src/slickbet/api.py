@@ -165,6 +165,28 @@ class MatchStatistics:
     saves: tuple[int, int] | None = None
     attacks: tuple[int, int] | None = None
     dangerous_attacks: tuple[int, int] | None = None
+    expected_goals: tuple[float, float] | None = None  # xG (Expected Goals)
+
+    def has_data(self) -> bool:
+        """
+        Check if this MatchStatistics object has any meaningful data.
+
+        Returns
+        -------
+        bool
+            True if at least one statistic field has data
+        """
+        return any(
+            [
+                self.possession is not None,
+                self.shots_on_target is not None,
+                self.shots_off_target is not None,
+                self.corners is not None,
+                self.attacks is not None,
+                self.dangerous_attacks is not None,
+                self.expected_goals is not None,
+            ]
+        )
 
     @staticmethod
     def parse_stat(value: str | None) -> tuple[int, int] | None:
@@ -178,6 +200,120 @@ class MatchStatistics:
         except (ValueError, AttributeError):
             pass
         return None
+
+    @staticmethod
+    def parse_float_stat(value: str | None) -> tuple[float, float] | None:
+        """Parse 'home:away' format to tuple of floats (for xG)."""
+        if not value or not isinstance(value, str):
+            return None
+        try:
+            parts = value.split(":")
+            if len(parts) == 2:
+                return (float(parts[0]), float(parts[1]))
+        except (ValueError, AttributeError):
+            pass
+        return None
+
+    @staticmethod
+    def calculate_xg_estimate(
+        shots_on_target: int,
+        shots_off_target: int,
+        dangerous_attacks: int,
+        attacks: int,
+        possession: float | None = None,
+    ) -> float:
+        """
+        Calculate estimated xG (Expected Goals) using a model-based approach.
+
+        Based on Expected Goals principles from:
+        https://en.wikipedia.org/wiki/Expected_goals
+
+        The model assigns probabilities to goal-scoring opportunities based on:
+        1. Shot quality (on target vs off target)
+        2. Chance quality (dangerous attacks indicate high-probability chances)
+        3. Contextual factors (possession, total attacks)
+
+        Model inputs (as per Wikipedia):
+        - Shot location/quality: inferred from shots on target (higher xG)
+        - Phase of play: inferred from dangerous attacks (high-quality chances)
+        - Contextual factors: possession and attack volume
+
+        Parameters
+        ----------
+        shots_on_target : int
+            Number of shots on target (higher probability of goal)
+        shots_off_target : int
+            Number of shots off target (lower probability)
+        dangerous_attacks : int
+            Number of dangerous attacks (high-quality chances)
+        attacks : int
+            Total number of attacks (context factor)
+        possession : float or None, optional
+            Possession percentage (0-100), used to adjust shot quality
+
+        Returns
+        -------
+        float
+            Estimated xG value (sum of shot probabilities)
+        """
+        # Model-based xG calculation
+        # Each shot is assigned a probability based on its characteristics
+
+        # 1. Shots on target: Higher probability (0.15-0.35 range)
+        # Based on historical data: shots on target convert at ~25-30%
+        # We use 0.25 as base, adjusted by possession quality
+        base_sot_xg = 0.25
+        if possession is not None:
+            # Higher possession = better shot quality (more time in good areas)
+            possession_factor = 1.0 + (possession - 50) / 200.0  # 0.75-1.25 range
+            sot_xg_per_shot = base_sot_xg * possession_factor
+        else:
+            sot_xg_per_shot = base_sot_xg
+
+        xg_from_shots_on_target = shots_on_target * min(sot_xg_per_shot, 0.35)
+
+        # 2. Shots off target: Lower probability (0.02-0.08 range)
+        # These represent attempts from less favorable positions
+        base_sot_off_xg = 0.04
+        if possession is not None:
+            possession_factor = 1.0 + (possession - 50) / 300.0
+            sot_off_xg_per_shot = base_sot_off_xg * possession_factor
+        else:
+            sot_off_xg_per_shot = base_sot_off_xg
+
+        xg_from_shots_off_target = shots_off_target * min(sot_off_xg_per_shot, 0.08)
+
+        # 3. Dangerous attacks: High-quality chances that may not result in shots
+        # These represent opportunities in the penalty area (high xG locations)
+        # Per Wikipedia: dangerous attacks indicate shots from favorable positions
+        # We estimate: ~40% of dangerous attacks result in shots
+        # Average xG per dangerous attack: 0.10-0.15 (penalty area chances)
+        dangerous_attacks_with_shots = dangerous_attacks * 0.4
+        xg_from_dangerous_attacks = dangerous_attacks_with_shots * 0.12
+
+        # 4. Remaining dangerous attacks (60%) that didn't result in shots
+        # These still represent high-probability chances (assists, blocked shots)
+        dangerous_attacks_no_shots = dangerous_attacks * 0.6
+        xg_from_dangerous_no_shots = dangerous_attacks_no_shots * 0.05
+
+        # 5. Other attacks: Lower quality chances
+        # These represent build-up play and pressure
+        # Only a small fraction result in high-probability chances
+        other_attacks = max(0, attacks - dangerous_attacks)
+        xg_from_other_attacks = other_attacks * 0.002
+
+        # Sum all probabilities (as per Expected Goals definition)
+        total_xg = (
+            xg_from_shots_on_target
+            + xg_from_shots_off_target
+            + xg_from_dangerous_attacks
+            + xg_from_dangerous_no_shots
+            + xg_from_other_attacks
+        )
+
+        # Cap at reasonable maximum
+        # Top teams rarely exceed 3.5-4.0 xG per match
+        return min(total_xg, 4.0)
 
 
 @dataclass
@@ -239,6 +375,69 @@ class TeamPerformanceStats:
     losses: int = 0
     win_rate: float = 0.0
 
+    # NEW: Match statistics averages (from historical matches)
+    # These are calculated from match statistics API for completed matches
+    matches_with_stats: int = 0  # How many matches had statistics available
+
+    # Track how many matches have each specific statistic
+    # (since not all stats are available for all matches)
+    matches_with_attacks: int = 0
+    matches_with_dangerous_attacks: int = 0
+    matches_with_shots: int = 0
+
+    # Possession statistics
+    total_possession: float = 0.0  # Sum of possession % across all matches
+    avg_possession: float = 0.0  # Average possession %
+
+    # Attack statistics
+    total_corners: int = 0
+    avg_corners: float = 0.0
+
+    total_attacks: int = 0
+    avg_attacks: float = 0.0
+
+    total_dangerous_attacks: int = 0
+    avg_dangerous_attacks: float = 0.0
+
+    # Shooting statistics
+    total_shots_on_target: int = 0
+    avg_shots_on_target: float = 0.0
+
+    total_shots_off_target: int = 0
+    avg_shots_off_target: float = 0.0
+
+    # Expected Goals (xG) statistics
+    total_expected_goals: float = 0.0
+    avg_expected_goals: float = 0.0
+
+    # Expected Goals Against (xGA) statistics
+    # Tracks opponent's xG in each match (defensive metric)
+    total_expected_goals_against: float = 0.0
+    avg_expected_goals_against: float = 0.0
+
+    # Expected Goal Difference (xGD) - calculated as xG - xGA
+    avg_expected_goal_difference: float = 0.0
+
+    # Goal Conversion Rate - goals scored per shot on target
+    goal_conversion_rate: float = 0.0
+
+    # Shot Accuracy - shots on target / total shots
+    # Higher shot accuracy indicates better chance quality
+    shot_accuracy: float = 0.0
+
+    # Defensive statistics (saves indicate defensive pressure/quality)
+    total_saves: int = 0
+    avg_saves: float = 0.0
+
+    # Discipline/Reliability statistics (cards)
+    total_yellow_cards: int = 0
+    avg_yellow_cards: float = 0.0
+    total_red_cards: int = 0
+    avg_red_cards: float = 0.0
+    total_cards: int = 0  # Yellow + Red (red counts as 2 for severity)
+    avg_cards: float = 0.0
+    reliability_score: float = 1.0  # 0.0 to 1.0 (higher = more reliable)
+
 
 @dataclass
 class Match:
@@ -289,7 +488,7 @@ class APIEndpoint(str, Enum):
     LEAGUES_TABLE = "leagues/table.json"
     TEAMS_MATCHES = "teams/matches.json"
     TEAMS_HEAD2HEAD = "teams/head2head.json"
-    SCORES_MATCH_STATS = "scores/match_stats.json"
+    MATCHES_STATS = "matches/stats.json"
     MATCHES_HISTORY = "matches/history.json"
 
 
@@ -731,7 +930,7 @@ class LivescoreClient:
         return "".join(form[:limit])
 
     def get_team_performance_stats(
-        self, team_id: str, num_matches: int = 10
+        self, team_id: str, num_matches: int = 10, verbose: bool = False
     ) -> TeamPerformanceStats:
         """
         Calculate detailed performance statistics for a team from recent matches.
@@ -741,6 +940,7 @@ class LivescoreClient:
         - Clean sheet rate (defensive solidity)
         - Home/Away specific win rates
         - Points per game
+        - Match statistics averages (possession, corners, attacks, shots on target)
 
         Parameters
         ----------
@@ -886,6 +1086,104 @@ class LivescoreClient:
                     ):  # Was winning, didn't win
                         stats.collapses += 1
 
+            # NEW: Fetch match statistics if available
+            # Statistics are only available for completed matches
+            match_id = str(match.get("id", ""))
+            if match_id:
+                try:
+                    match_stats = self.get_match_statistics(match_id)
+                    # Check if we got meaningful statistics
+                    if match_stats and match_stats.has_data():
+                        if verbose:
+                            print(
+                                f"   ✓ Found stats for match {match_id}: "
+                                f"possession={match_stats.possession}, "
+                                f"attacks={match_stats.attacks}"
+                            )
+                        # Extract team's stats (home or away)
+                        if is_home:
+                            if match_stats.possession:
+                                stats.total_possession += match_stats.possession[0]
+                            if match_stats.corners:
+                                stats.total_corners += match_stats.corners[0]
+                            if match_stats.attacks:
+                                stats.total_attacks += match_stats.attacks[0]
+                                stats.matches_with_attacks += 1
+                            if match_stats.dangerous_attacks:
+                                stats.total_dangerous_attacks += match_stats.dangerous_attacks[0]
+                                stats.matches_with_dangerous_attacks += 1
+                            if match_stats.shots_on_target:
+                                stats.total_shots_on_target += match_stats.shots_on_target[0]
+                                stats.matches_with_shots += 1
+                            if match_stats.shots_off_target:
+                                stats.total_shots_off_target += match_stats.shots_off_target[0]
+                            if match_stats.saves:
+                                stats.total_saves += match_stats.saves[0]
+                            if match_stats.expected_goals:
+                                stats.total_expected_goals += match_stats.expected_goals[0]
+                                # Track opponent's xG (xGA - Expected Goals Against)
+                                if len(match_stats.expected_goals) > 1:
+                                    stats.total_expected_goals_against += (
+                                        match_stats.expected_goals[1]
+                                    )
+                            # Accumulate card statistics for reliability
+                            if match_stats.yellow_cards:
+                                stats.total_yellow_cards += match_stats.yellow_cards[0]
+                            if match_stats.red_cards:
+                                stats.total_red_cards += match_stats.red_cards[0]
+                                # Red cards count as 2 for severity (more disruptive)
+                                stats.total_cards += match_stats.red_cards[0] * 2
+                            if match_stats.yellow_cards:
+                                stats.total_cards += match_stats.yellow_cards[0]
+                        else:
+                            if match_stats.possession:
+                                stats.total_possession += match_stats.possession[1]
+                            if match_stats.corners:
+                                stats.total_corners += match_stats.corners[1]
+                            if match_stats.attacks:
+                                stats.total_attacks += match_stats.attacks[1]
+                                stats.matches_with_attacks += 1
+                            if match_stats.dangerous_attacks:
+                                stats.total_dangerous_attacks += match_stats.dangerous_attacks[1]
+                                stats.matches_with_dangerous_attacks += 1
+                            if match_stats.shots_on_target:
+                                stats.total_shots_on_target += match_stats.shots_on_target[1]
+                                stats.matches_with_shots += 1
+                            if match_stats.shots_off_target:
+                                stats.total_shots_off_target += match_stats.shots_off_target[1]
+                            if match_stats.saves:
+                                stats.total_saves += match_stats.saves[1]
+                            if match_stats.expected_goals:
+                                stats.total_expected_goals += match_stats.expected_goals[1]
+                                # Track opponent's xG (xGA - Expected Goals Against)
+                                if len(match_stats.expected_goals) > 0:
+                                    stats.total_expected_goals_against += (
+                                        match_stats.expected_goals[0]
+                                    )
+                            # Accumulate card statistics for reliability
+                            if match_stats.yellow_cards:
+                                stats.total_yellow_cards += match_stats.yellow_cards[1]
+                            if match_stats.red_cards:
+                                stats.total_red_cards += match_stats.red_cards[1]
+                                # Red cards count as 2 for severity (more disruptive)
+                                stats.total_cards += match_stats.red_cards[1] * 2
+                            if match_stats.yellow_cards:
+                                stats.total_cards += match_stats.yellow_cards[1]
+
+                        stats.matches_with_stats += 1
+                except LivescoreAPIError as e:
+                    # API error - statistics endpoint might not be available for this match
+                    # This is expected for many matches, so we silently continue
+                    if verbose:
+                        print(f"   ✗ API error for match {match_id}: {e}")
+                    pass
+                except Exception as e:
+                    # Other errors (network, parsing, etc.) - also silently continue
+                    # Statistics not available for this match (common for older matches)
+                    if verbose:
+                        print(f"   ✗ Error fetching stats for match {match_id}: {e}")
+                    pass
+
             finished_matches += 1
 
             # Stop once we have enough
@@ -908,6 +1206,69 @@ class LivescoreClient:
             # Comeback rate: of games where they trailed at HT, how many did they not lose?
             if stats.ht_losses > 0:
                 stats.comeback_rate = stats.comebacks / stats.ht_losses
+
+            # NEW: Calculate match statistics averages
+            if verbose:
+                print(
+                    f"   Team {team_id}: {stats.matches_with_stats}/{finished_matches} "
+                    f"matches have statistics"
+                )
+            if stats.matches_with_stats > 0:
+                stats.avg_possession = stats.total_possession / stats.matches_with_stats
+                stats.avg_corners = stats.total_corners / stats.matches_with_stats
+                # Only calculate averages for stats that were actually available
+                # This prevents dividing by matches_with_stats when the stat wasn't available
+                if stats.matches_with_attacks > 0:
+                    stats.avg_attacks = stats.total_attacks / stats.matches_with_attacks
+                if stats.matches_with_dangerous_attacks > 0:
+                    stats.avg_dangerous_attacks = (
+                        stats.total_dangerous_attacks / stats.matches_with_dangerous_attacks
+                    )
+                if stats.matches_with_shots > 0:
+                    stats.avg_shots_on_target = (
+                        stats.total_shots_on_target / stats.matches_with_shots
+                    )
+                    stats.avg_shots_off_target = (
+                        stats.total_shots_off_target / stats.matches_with_shots
+                    )
+                stats.avg_expected_goals = stats.total_expected_goals / stats.matches_with_stats
+                # Calculate Expected Goals Against (xGA) average
+                stats.avg_expected_goals_against = (
+                    stats.total_expected_goals_against / stats.matches_with_stats
+                )
+                # Calculate Expected Goal Difference (xGD) - key predictor
+                stats.avg_expected_goal_difference = (
+                    stats.avg_expected_goals - stats.avg_expected_goals_against
+                )
+                # Calculate Goal Conversion Rate (goals per shot on target)
+                # Use average goals per game divided by average shots on target per game
+                if stats.avg_shots_on_target > 0 and finished_matches > 0:
+                    stats.goal_conversion_rate = stats.goals_per_game / stats.avg_shots_on_target
+                # Calculate Shot Accuracy (shots on target / total shots)
+                # Higher shot accuracy indicates better chance quality
+                total_shots = stats.total_shots_on_target + stats.total_shots_off_target
+                if total_shots > 0:
+                    stats.shot_accuracy = stats.total_shots_on_target / total_shots
+                # Calculate average saves (defensive metric)
+                if stats.matches_with_stats > 0:
+                    stats.avg_saves = stats.total_saves / stats.matches_with_stats
+                # Calculate card averages
+                stats.avg_yellow_cards = stats.total_yellow_cards / stats.matches_with_stats
+                stats.avg_red_cards = stats.total_red_cards / stats.matches_with_stats
+                stats.avg_cards = stats.total_cards / stats.matches_with_stats
+
+                # Calculate reliability score (0.0 to 1.0)
+                # Lower cards = higher reliability
+                # Typical range: 0-5 cards per game
+                # 0 cards = 1.0 (perfect reliability)
+                # 5+ cards = 0.0 (very unreliable)
+                if stats.avg_cards <= 0:
+                    stats.reliability_score = 1.0
+                elif stats.avg_cards >= 5.0:
+                    stats.reliability_score = 0.0
+                else:
+                    # Linear scale: 0 cards = 1.0, 5 cards = 0.0
+                    stats.reliability_score = 1.0 - (stats.avg_cards / 5.0)
 
         if stats.home_games > 0:
             stats.home_win_rate = stats.home_wins / stats.home_games
@@ -1005,13 +1366,55 @@ class LivescoreClient:
         MatchStatistics
             MatchStatistics object with available stats
         """
-        data = self._make_request(APIEndpoint.SCORES_MATCH_STATS, params={"match_id": match_id})
+        # Correct endpoint: matches/stats.json
+        # Per: https://livescore-api.com/api-client/matches/stats.json?match_id=172252
+        data = self._make_request(APIEndpoint.MATCHES_STATS, params={"match_id": match_id})
 
         stats_data = self._safe_get_nested(data, "data", default={})
         if not isinstance(stats_data, dict):
             stats_data = {}
 
         parse = MatchStatistics.parse_stat
+        parse_float = MatchStatistics.parse_float_stat
+
+        # Try to get xG from API first
+        api_xg = parse_float(stats_data.get("expected_goals") or stats_data.get("xg"))
+
+        # If API doesn't provide xG, calculate estimate from available stats
+        # Using model-based approach per Wikipedia Expected Goals principles
+        calculated_xg = None
+        if api_xg is None:
+            shots_on_target = parse(stats_data.get("shots_on_target"))
+            shots_off_target = parse(stats_data.get("shots_off_target"))
+            dangerous_attacks = parse(stats_data.get("dangerous_attacks"))
+            attacks = parse(stats_data.get("attacks"))
+            possession = parse(stats_data.get("possesion"))  # API typo
+
+            if (
+                shots_on_target is not None
+                or shots_off_target is not None
+                or dangerous_attacks is not None
+                or attacks is not None
+            ):
+                # Calculate xG for both teams
+                home_sot = shots_on_target[0] if shots_on_target else 0
+                away_sot = shots_on_target[1] if shots_on_target else 0
+                home_sot_off = shots_off_target[0] if shots_off_target else 0
+                away_sot_off = shots_off_target[1] if shots_off_target else 0
+                home_da = dangerous_attacks[0] if dangerous_attacks else 0
+                away_da = dangerous_attacks[1] if dangerous_attacks else 0
+                home_att = attacks[0] if attacks else 0
+                away_att = attacks[1] if attacks else 0
+                home_poss = float(possession[0]) if possession else None
+                away_poss = float(possession[1]) if possession else None
+
+                home_xg = MatchStatistics.calculate_xg_estimate(
+                    home_sot, home_sot_off, home_da, home_att, home_poss
+                )
+                away_xg = MatchStatistics.calculate_xg_estimate(
+                    away_sot, away_sot_off, away_da, away_att, away_poss
+                )
+                calculated_xg = (home_xg, away_xg)
 
         return MatchStatistics(
             possession=parse(stats_data.get("possesion")),  # API typo: "possesion"
@@ -1025,6 +1428,7 @@ class LivescoreClient:
             saves=parse(stats_data.get("saves")),
             attacks=parse(stats_data.get("attacks")),
             dangerous_attacks=parse(stats_data.get("dangerous_attacks")),
+            expected_goals=api_xg or calculated_xg,  # Use API xG if available, else calculated
         )
 
     def get_history(
@@ -1433,8 +1837,9 @@ class LivescoreClient:
 
         try:
             # NEW: Get detailed performance stats (goals, clean sheets, etc.)
-            match.home_performance = self.get_team_performance_stats(home_id)
-            match.away_performance = self.get_team_performance_stats(away_id)
+            # This looks back at last 10 matches and calculates averages
+            match.home_performance = self.get_team_performance_stats(home_id, num_matches=10)
+            match.away_performance = self.get_team_performance_stats(away_id, num_matches=10)
         except Exception:
             pass
 
