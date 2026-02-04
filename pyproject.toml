@@ -274,6 +274,21 @@ args = [
 ]
 help = "Run screener for UAE Pro League only"
 
+# African leagues screener tasks
+[tool.poe.tasks.run-african]
+shell = "slickbet --days ${days} --african-only --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
+]
+help = "Run screener for African leagues (Algeria, Senegal, Ghana, Nigeria, Egypt, South Africa, Morocco, Tanzania, Angola)"
+
 # Backtesting tasks
 [tool.poe.tasks.backtest]
 shell = "slickbet backtest $@"
@@ -381,7 +396,7 @@ args = [
 help = "Backtest on ALL Persian Gulf leagues with aggregated results"
 
 [tool.poe.tasks.backtest-all-global]
-shell = "slickbet backtest-all --include-gulf --weeks ${weeks} ${debug:+--debug}"
+shell = "slickbet backtest-all --include-gulf --include-african --weeks ${weeks} ${debug:+--debug}"
 args = [
     { name = "weeks", default = "4", options = [
         "--weeks",
@@ -391,7 +406,7 @@ args = [
         "--debug",
     ] },
 ]
-help = "Backtest on ALL leagues (Major + Persian Gulf) with aggregated results. Use --debug=1 to enable debug output."
+help = "Backtest on ALL leagues (Major + Minor European + Persian Gulf + African) with aggregated results. Use --debug=1 to enable debug output."
 
 [tool.poe.tasks.backtest-json]
 cmd = "slickbet backtest --json"
