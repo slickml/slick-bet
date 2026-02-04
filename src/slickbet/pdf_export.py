@@ -4,27 +4,25 @@ PDF export functionality for screener and backtest results.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from zoneinfo import ZoneInfo
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
-    PageBreak,
 )
 
 from slickbet.backtest import BacktestResults
 from slickbet.screener import BetPrediction, ScreenerResult, to_central_time
 
 
-def get_pdf_output_path(filename: str, output_path: Optional[str] = None) -> str:
+def get_pdf_output_path(filename: str, output_path: str | None = None) -> str:
     """
     Get the full path for PDF output, creating directory if needed.
 
@@ -85,7 +83,7 @@ def get_pdf_output_path(filename: str, output_path: Optional[str] = None) -> str
 def export_screener_to_pdf(
     result: ScreenerResult,
     predictions: list[BetPrediction],
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> str:
     """
     Export screener results to a PDF file.
@@ -381,7 +379,7 @@ def export_screener_to_pdf(
 
 def export_backtest_to_pdf(
     results: BacktestResults,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> str:
     """
     Export backtest results to a PDF file.
@@ -634,7 +632,7 @@ def export_backtest_all_to_pdf(
     all_results: list,
     league_type: str,
     weeks: int,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> str:
     """
     Export aggregated backtest results (from backtest-all) to a PDF file.

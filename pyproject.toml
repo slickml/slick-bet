@@ -385,18 +385,18 @@ args = [
 ]
 help = "Backtest on ALL major leagues with aggregated results"
 
-[tool.poe.tasks.backtest-gulf]
-shell = "slickbet backtest-all --gulf-only --weeks ${weeks} $@"
+[tool.poe.tasks.backtest-asia]
+shell = "slickbet backtest-all --asia-only --weeks ${weeks} $@"
 args = [
     { name = "weeks", default = "4", options = [
         "--weeks",
         "-w",
     ] },
 ]
-help = "Backtest on ALL Persian Gulf leagues with aggregated results"
+help = "Backtest on ALL Asia leagues (Saudi, Australia) with aggregated results"
 
 [tool.poe.tasks.backtest-all-global]
-shell = "slickbet backtest-all --include-gulf --include-african --weeks ${weeks} ${debug:+--debug}"
+shell = "slickbet backtest-all --include-asia --include-americas --weeks ${weeks} ${debug:+--debug}"
 args = [
     { name = "weeks", default = "4", options = [
         "--weeks",
@@ -406,7 +406,7 @@ args = [
         "--debug",
     ] },
 ]
-help = "Backtest on ALL leagues (Major + Minor European + Persian Gulf + African) with aggregated results. Use --debug=1 to enable debug output."
+help = "Backtest on ALL leagues (Major + Minor European + Asia + Americas) with aggregated results. Use --debug=1 to enable debug output."
 
 [tool.poe.tasks.backtest-json]
 cmd = "slickbet backtest --json"

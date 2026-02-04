@@ -519,6 +519,72 @@ class Backtester:
 
         return match
 
+    def _get_country_flag(self, country: str) -> str:
+        """
+        Get country flag emoji based on country name.
+
+        Parameters
+        ----------
+        country : str
+            Country name
+
+        Returns
+        -------
+        str
+            Flag emoji or empty string if not found
+        """
+        if not country:
+            return ""
+
+        country_lower = country.lower().strip()
+
+        # Country to flag mapping (with variations)
+        country_flags = {
+            "germany": "🇩🇪",
+            "deutschland": "🇩🇪",
+            "england": "🇬🇧",
+            "united kingdom": "🇬🇧",
+            "uk": "🇬🇧",
+            "spain": "🇪🇸",
+            "espana": "🇪🇸",
+            "italy": "🇮🇹",
+            "italia": "🇮🇹",
+            "france": "🇫🇷",
+            "belgium": "🇧🇪",
+            "belgie": "🇧🇪",
+            "portugal": "🇵🇹",
+            "turkey": "🇹🇷",
+            "turkiye": "🇹🇷",
+            "netherlands": "🇳🇱",
+            "holland": "🇳🇱",
+            "croatia": "🇭🇷",
+            "hrvatska": "🇭🇷",
+            "poland": "🇵🇱",
+            "polska": "🇵🇱",
+            "scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+            "greece": "🇬🇷",
+            "hellas": "🇬🇷",
+            "saudi arabia": "🇸🇦",
+            "saudi": "🇸🇦",
+            "australia": "🇦🇺",
+            "argentina": "🇦🇷",
+            "brazil": "🇧🇷",
+            "brasil": "🇧🇷",
+            "mexico": "🇲🇽",
+            "méxico": "🇲🇽",
+        }
+
+        # Try exact match first
+        if country_lower in country_flags:
+            return country_flags[country_lower]
+
+        # Try partial match (country name contains key or vice versa)
+        for country_name, flag in country_flags.items():
+            if country_name in country_lower or country_lower in country_name:
+                return flag
+
+        return ""
+
     def _print_debug_match(self, result: PredictionResult) -> None:
         """
         Print detailed debug information for a single match prediction.
@@ -531,10 +597,16 @@ class Backtester:
         match = result.match
         pred = result.prediction
 
+        # Get country flag
+        country_flag = self._get_country_flag(match.country) if match.country else ""
+        competition_display = (
+            f"{country_flag} {match.competition}" if country_flag else match.competition
+        )
+
         # Match header
         print()
         print("=" * 80)
-        print(f"📅 {match.date.strftime('%Y-%m-%d')} | {match.competition}")
+        print(f"📅 {match.date.strftime('%Y-%m-%d')} | {competition_display}")
         print(f"🏠 {match.home_team.name} vs ✈️ {match.away_team.name}")
         print("-" * 80)
 
