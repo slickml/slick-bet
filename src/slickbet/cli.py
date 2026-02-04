@@ -187,15 +187,15 @@ Examples:
     )
 
     backtest_all_parser.add_argument(
-        "--include-gulf",
+        "--include-asia",
         action="store_true",
-        help="Include Persian Gulf leagues (Saudi, Qatar, UAE) in backtest",
+        help="Include Asia leagues (Saudi, Australia) in backtest",
     )
 
     backtest_all_parser.add_argument(
-        "--gulf-only",
+        "--asia-only",
         action="store_true",
-        help="Only test Persian Gulf leagues (Saudi, Qatar, UAE)",
+        help="Only test Asia leagues (Saudi, Australia)",
     )
 
     backtest_all_parser.add_argument(
@@ -208,6 +208,18 @@ Examples:
         "--african-only",
         action="store_true",
         help="Only test African leagues",
+    )
+
+    backtest_all_parser.add_argument(
+        "--include-americas",
+        action="store_true",
+        help="Include Americas leagues (Argentina, Brazil, Mexico) in backtest",
+    )
+
+    backtest_all_parser.add_argument(
+        "--americas-only",
+        action="store_true",
+        help="Only test Americas leagues (Argentina, Brazil, Mexico)",
     )
 
     backtest_all_parser.add_argument(
@@ -293,21 +305,21 @@ Examples:
     )
 
     filter_group.add_argument(
-        "--gulf-only",
+        "--asia-only",
         action="store_true",
-        help="Only show Persian Gulf leagues (Saudi Pro League, Qatar Stars, UAE Pro League)",
+        help="Only show Asia leagues (Saudi Pro League, Hyundai A-League/Australia)",
     )
 
     filter_group.add_argument(
-        "--african-only",
+        "--americas-only",
         action="store_true",
-        help="Only show African leagues (Algeria, Senegal, Ghana, Nigeria, Egypt, South Africa, Morocco, Tanzania, Angola)",
+        help="Only show Americas leagues (Liga Professional/Argentina, Serie A/Brazil, Liga MX/Mexico)",
     )
 
     filter_group.add_argument(
         "--all-leagues",
         action="store_true",
-        help="Show all supported leagues (Major European + Minor European + Persian Gulf + African)",
+        help="Show all supported leagues (Major European + Minor European + Asia + Americas)",
     )
 
     filter_group.add_argument(
@@ -315,7 +327,7 @@ Examples:
         type=str,
         action="append",
         metavar="ID",
-        help="Filter by league ID: 1=Bundesliga, 2=PL, 3=LaLiga, 4=SerieA, 5=Ligue1, 313=Saudi, 305=Qatar, 354=UAE, 35=Algeria, 84=Senegal, 86=Ghana, 78=Nigeria, 36=Egypt, 41=SouthAfrica, 38=Morocco, 80=Tanzania, 449=Angola",
+        help="Filter by league ID: 1=Bundesliga, 2=PL, 3=LaLiga, 4=SerieA, 5=Ligue1, 313=Saudi, 67=Australia, 23=Argentina, 24=Brazil, 45=Mexico, 17=Croatia, 60=Poland, 75=Scotland, 9=Greece",
     )
 
     # Output options
@@ -555,56 +567,50 @@ def run_backtest_all(args: argparse.Namespace) -> int:
         ("8", "🇵🇹 Primeira Liga", "Portugal"),
         ("6", "🇹🇷 Super Lig", "Turkey"),
         ("196", "🇳🇱 Eredivisie", "Netherlands"),
+        ("17", "🇭🇷 1. HNL", "Croatia"),
+        ("60", "🇵🇱 Ekstraklasa", "Poland"),
+        ("75", "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Premiership", "Scotland"),
+        ("9", "🇬🇷 Super League", "Greece"),
     ]
 
-    # Persian Gulf leagues
-    GULF_LEAGUES = [
+    # Asia leagues
+    ASIA_LEAGUES = [
         ("313", "🇸🇦 Saudi Pro League", "Saudi Arabia"),
-        ("305", "🇶🇦 Qatar Stars League", "Qatar"),
-        ("354", "🇦🇪 UAE Pro League", "UAE"),
+        ("67", "🇦🇺 Hyundai A-League", "Australia"),
     ]
 
-    # African leagues
-    AFRICAN_LEAGUES = [
-        ("35", "🇩🇿 Algeria Ligue 1", "Algeria"),
-        ("84", "🇸🇳 Senegal Ligue 1", "Senegal"),
-        ("86", "🇬🇭 Ghana Premier League", "Ghana"),
-        ("78", "🇳🇬 Nigeria NPFL", "Nigeria"),
-        ("36", "🇪🇬 Egypt Premier League", "Egypt"),
-        ("41", "🇿🇦 South Africa Premier League", "South Africa"),
-        ("38", "🇲🇦 Morocco Botola Pro", "Morocco"),
-        ("80", "🇹🇿 Tanzania Premier League", "Tanzania"),
-        ("449", "🇦🇴 Angola Garibola", "Angola"),
+    # Americas leagues
+    AMERICAS_LEAGUES = [
+        ("23", "🇦🇷 Liga Professional", "Argentina"),
+        ("24", "🇧🇷 Serie A", "Brazil"),
+        ("45", "🇲🇽 Liga MX", "Mexico"),
     ]
 
     # Determine which leagues to test
-    include_gulf = getattr(args, "include_gulf", False)
-    gulf_only = getattr(args, "gulf_only", False)
-    include_african = getattr(args, "include_african", False)
-    african_only = getattr(args, "african_only", False)
+    include_asia = getattr(args, "include_asia", False)
+    asia_only = getattr(args, "asia_only", False)
+    include_americas = getattr(args, "include_americas", False)
+    americas_only = getattr(args, "americas_only", False)
 
-    if gulf_only:
-        LEAGUES = GULF_LEAGUES
-        league_type = "Persian Gulf"
-    elif african_only:
-        LEAGUES = AFRICAN_LEAGUES
-        league_type = "African"
-    elif include_gulf and include_african:
-        # Include Major + Minor European + Persian Gulf + African
-        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + GULF_LEAGUES + AFRICAN_LEAGUES
-        league_type = "ALL (Major + Minor European + Persian Gulf + African)"
-    elif include_gulf:
-        # Include Major + Minor European + Persian Gulf
-        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + GULF_LEAGUES
-        league_type = "ALL (Major + Minor European + Persian Gulf)"
-    elif include_african:
-        # Include Major + Minor European + African
-        LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + AFRICAN_LEAGUES
-        league_type = "ALL (Major + Minor European + African)"
+    if asia_only:
+        LEAGUES = ASIA_LEAGUES
+        league_type = "Asia"
+    elif americas_only:
+        LEAGUES = AMERICAS_LEAGUES
+        league_type = "Americas"
     else:
-        # Default: Major + Minor European (for backtest-all-global)
+        # Build league list based on what's included
         LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES
-        league_type = "Major + Minor European"
+        league_type_parts = ["Major + Minor European"]
+
+        if include_asia:
+            LEAGUES += ASIA_LEAGUES
+            league_type_parts.append("Asia")
+        if include_americas:
+            LEAGUES += AMERICAS_LEAGUES
+            league_type_parts.append("Americas")
+
+        league_type = "ALL (" + " + ".join(league_type_parts) + ")"
 
     print()
     print("🏆 SlickBet - ALL LEAGUES Backtesting")
@@ -796,8 +802,8 @@ def run_screener(args: argparse.Namespace) -> int:
         competitions=args.competition or [],
         competition_ids=args.league or [],
         major_leagues_only=args.major_only,
-        gulf_leagues_only=getattr(args, "gulf_only", False),
-        african_leagues_only=getattr(args, "african_only", False),
+        asia_leagues_only=getattr(args, "asia_only", False),
+        americas_leagues_only=getattr(args, "americas_only", False),
         all_leagues=getattr(args, "all_leagues", False),
     )
 
