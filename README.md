@@ -5,12 +5,12 @@ A Python-based betting screener for soccer games using the Livescore API. Fetche
 ## Features
 
 - 📅 **Multi-Day Screening** - Screen matches for the next N days
-- 📊 **9-Factor Analysis** - Comprehensive statistical model for predictions
+- 📊 **11-Factor Analysis** - Comprehensive statistical model with xG and reliability metrics
 - 🎲 **Double Chance Bets** - Safer betting options (1X, X2, 12)
 - 🏆 **Major European Leagues** - Bundesliga, Premier League, La Liga, Serie A, Ligue 1
-- 🌍 **Minor European Leagues** - Belgian Pro League, Primeira Liga, Super Lig, Eredivisie
-- 🏟️ **Persian Gulf Leagues** - Saudi Pro League, Qatar Stars League, UAE Pro League
-- 🌍 **African Leagues** - Algeria, Senegal, Ghana, Nigeria, Egypt, South Africa, Morocco, Tanzania, Angola
+- 🌍 **Minor European Leagues** - Belgian Pro League, Primeira Liga, Super Lig, Eredivisie, 1. HNL, Ekstraklasa, Premiership, Super League
+- 🌏 **Asia Leagues** - Saudi Pro League, Hyundai A-League (Australia)
+- 🌎 **Americas Leagues** - Liga Professional (Argentina), Serie A (Brazil), Liga MX (Mexico)
 - 🎯 **Confidence Grades** - Visual indicators (🔥 HIGH VALUE, ✅ GOOD BET, 👍 DECENT, ⚠️ RISKY)
 - 📈 **Backtesting** - Validate model accuracy against historical data
 - 💻 **CLI Interface** - Easy-to-use command-line tool
@@ -50,18 +50,21 @@ poe run-all --days=1 --top=20
 # Screen major European leagues only (tomorrow's games)
 poe run-major
 
-# Screen Persian Gulf leagues only for 3 days
-poe run-gulf --days=3
+# Screen Asia leagues only for 3 days
+poe run-asia --days=3
 
-# Backtest all leagues for 4 weeks
-poe backtest-all-global --weeks=4
+# Screen Americas leagues only for 3 days
+poe run-americas --days=3
+
+# Backtest all leagues for 1 week
+poe backtest-all-global --weeks=1
 ```
 
 ## 📋 All Commands
 
 ### Screener Commands
 
-#### All Leagues (Major + Minor European + Persian Gulf + African)
+#### All Leagues (Major + Minor European + Asia + Americas)
 | Command                | Description                        |
 | ---------------------- | ---------------------------------- |
 | `poe run-all --days N` | Screen ALL leagues for next N days |
@@ -78,18 +81,20 @@ poe backtest-all-global --weeks=4
 | `poe run-seriea --days N`     | 🇮🇹 Serie A only                           |
 | `poe run-ligue1 --days N`     | 🇫🇷 Ligue 1 only                           |
 
-#### Persian Gulf Leagues
-| Command                  | Description                                |
-| ------------------------ | ------------------------------------------ |
-| `poe run-gulf --days N`  | Screen all Persian Gulf leagues for N days |
-| `poe run-saudi --days N` | 🇸🇦 Saudi Pro League only                    |
-| `poe run-qatar --days N` | 🇶🇦 Qatar Stars League only                  |
-| `poe run-uae --days N`   | 🇦🇪 UAE Pro League only                      |
+#### Asia Leagues
+| Command                      | Description                        |
+| ---------------------------- | ---------------------------------- |
+| `poe run-asia --days N`      | Screen all Asia leagues for N days |
+| `poe run-saudi --days N`     | 🇸🇦 Saudi Pro League only            |
+| `poe run-australia --days N` | 🇦🇺 Hyundai A-League only            |
 
-#### African Leagues
-| Command                    | Description                            |
-| -------------------------- | -------------------------------------- |
-| `poe run-african --days N` | Screen all African leagues for N days  |
+#### Americas Leagues
+| Command                      | Description                            |
+| ---------------------------- | -------------------------------------- |
+| `poe run-americas --days N`  | Screen all Americas leagues for N days |
+| `poe run-argentina --days N` | 🇦🇷 Liga Professional only               |
+| `poe run-brazil --days N`    | 🇧🇷 Serie A only                         |
+| `poe run-mexico --days N`    | 🇲🇽 Liga MX only                         |
 
 #### Basic Commands
 | Command                 | Description                      |
@@ -101,12 +106,12 @@ poe backtest-all-global --weeks=4
 ### Backtest Commands
 
 #### Aggregated Backtests
-| Command                                       | Description                                                  |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| `poe backtest-all --weeks N`                  | Backtest ALL major + minor European leagues                  |
-| `poe backtest-gulf --weeks N`                 | Backtest ALL Persian Gulf leagues                            |
-| `poe backtest-all-global --weeks N`           | Backtest ALL leagues (Major + Minor European + Persian Gulf + African) |
-| `poe backtest-all-global --weeks N --debug=1` | Same as above with detailed match-by-match debug output      |
+| Command                                       | Description                                                     |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| `poe backtest-all --weeks N`                  | Backtest ALL major + minor European leagues                     |
+| `poe backtest-asia --weeks N`                 | Backtest ALL Asia leagues (Saudi, Australia)                    |
+| `poe backtest-all-global --weeks N`           | Backtest ALL leagues (Major + Minor European + Asia + Americas) |
+| `poe backtest-all-global --weeks N --debug=1` | Same as above with detailed match-by-match debug output         |
 
 **Note**: Add `--debug=1` to any backtest command (or `--debug` for direct CLI usage) to see detailed match-by-match information including:
 - Match details (date, teams, competition)
@@ -116,16 +121,18 @@ poe backtest-all-global --weeks=4
 - Key reasoning factors
 
 #### Individual League Backtests
-| Command                             | Description          |
-| ----------------------------------- | -------------------- |
-| `poe backtest-bundesliga --weeks N` | 🇩🇪 Bundesliga         |
-| `poe backtest-pl --weeks N`         | 🇬🇧 Premier League     |
-| `poe backtest-liga --weeks N`       | 🇪🇸 La Liga            |
-| `poe backtest-seriea --weeks N`     | 🇮🇹 Serie A            |
-| `poe backtest-ligue1 --weeks N`     | 🇫🇷 Ligue 1            |
-| `poe backtest-saudi --weeks N`      | 🇸🇦 Saudi Pro League   |
-| `poe backtest-qatar --weeks N`      | 🇶🇦 Qatar Stars League |
-| `poe backtest-uae --weeks N`        | 🇦🇪 UAE Pro League     |
+| Command                             | Description         |
+| ----------------------------------- | ------------------- |
+| `poe backtest-bundesliga --weeks N` | 🇩🇪 Bundesliga        |
+| `poe backtest-pl --weeks N`         | 🇬🇧 Premier League    |
+| `poe backtest-liga --weeks N`       | 🇪🇸 La Liga           |
+| `poe backtest-seriea --weeks N`     | 🇮🇹 Serie A           |
+| `poe backtest-ligue1 --weeks N`     | 🇫🇷 Ligue 1           |
+| `poe backtest-saudi --weeks N`      | 🇸🇦 Saudi Pro League  |
+| `poe backtest-australia --weeks N`  | 🇦🇺 Hyundai A-League  |
+| `poe backtest-argentina --weeks N`  | 🇦🇷 Liga Professional |
+| `poe backtest-brazil --weeks N`     | 🇧🇷 Serie A           |
+| `poe backtest-mexico --weeks N`     | 🇲🇽 Liga MX           |
 
 ### Development Commands
 | Command         | Description                 |
@@ -158,44 +165,105 @@ poe backtest-all-global --weeks=4
 | 8   | Primeira Liga      | 🇵🇹 Portugal    |
 | 6   | Super Lig          | 🇹🇷 Turkey      |
 | 196 | Eredivisie         | 🇳🇱 Netherlands |
+| 17  | 1. HNL             | 🇭🇷 Croatia     |
+| 60  | Ekstraklasa        | 🇵🇱 Poland      |
+| 75  | Premiership        | 🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland    |
+| 9   | Super League       | 🇬🇷 Greece      |
 
-### Persian Gulf Leagues
-| ID  | League             | Country        |
-| --- | ------------------ | -------------- |
-| 313 | Saudi Pro League   | 🇸🇦 Saudi Arabia |
-| 305 | Qatar Stars League | 🇶🇦 Qatar        |
-| 354 | UAE Pro League     | 🇦🇪 UAE          |
+### Asia Leagues
+| ID  | League           | Country        |
+| --- | ---------------- | -------------- |
+| 313 | Saudi Pro League | 🇸🇦 Saudi Arabia |
+| 67  | Hyundai A-League | 🇦🇺 Australia    |
 
-### African Leagues
-| ID  | League                  | Country         |
-| --- | ----------------------- | --------------- |
-| 35  | Ligue 1                 | 🇩🇿 Algeria      |
-| 84  | Ligue 1                 | 🇸🇳 Senegal      |
-| 86  | Premier League          | 🇬🇭 Ghana        |
-| 78  | NPFL                    | 🇳🇬 Nigeria      |
-| 36  | Premier League          | 🇪🇬 Egypt        |
-| 41  | Premier League          | 🇿🇦 South Africa |
-| 38  | Botola Pro              | 🇲🇦 Morocco      |
-| 80  | Premier League          | 🇹🇿 Tanzania     |
-| 449 | Garibola                | 🇦🇴 Angola       |
+### Americas Leagues
+| ID  | League            | Country     |
+| --- | ----------------- | ----------- |
+| 23  | Liga Professional | 🇦🇷 Argentina |
+| 24  | Serie A           | 🇧🇷 Brazil    |
+| 45  | Liga MX           | 🇲🇽 Mexico    |
 
 Use `slickbet competitions --country <name>` to find more competition IDs.
 
 ## 🧠 How the Model Works
 
-The betting model uses a **9-factor weighted scoring system**:
+The betting model uses an **11-factor weighted scoring system** with advanced statistics:
 
-| Factor             | Weight | Description                                              |
-| ------------------ | ------ | -------------------------------------------------------- |
-| **Position**       | 20%    | League table standing differential                       |
-| **Odds**           | 18%    | Bookmaker pre-match odds (implied probability)           |
-| **Form**           | 16%    | Recent match results (last 5 games)                      |
-| **Goals**          | 12%    | Attack/defense strength (goals scored/conceded per game) |
-| **Home Advantage** | 9%     | Historical home team advantage                           |
-| **Momentum**       | 7%     | First-half lead rate + win rate + comeback ability       |
-| **H2H**            | 7%     | Historical head-to-head record                           |
-| **Venue Form**     | 6%     | Home/away specific win rates                             |
-| **Defense**        | 5%     | Clean sheet rate                                         |
+| Factor             | Weight | Description                                                                                   |
+| ------------------ | ------ | --------------------------------------------------------------------------------------------- |
+| **Position**       | 19%    | League table standing differential                                                            |
+| **Odds**           | 17%    | Bookmaker pre-match odds (implied probability)                                                |
+| **Form**           | 15%    | Recent match results (last 5 games)                                                           |
+| **Goals**          | 11%    | Attack/defense strength (goals scored/conceded per game)                                      |
+| **Home Advantage** | 9%     | Historical home team advantage                                                                |
+| **Momentum**       | 6%     | First-half lead rate + win rate + comeback ability                                            |
+| **H2H**            | 7%     | Historical head-to-head record                                                                |
+| **Venue Form**     | 6%     | Home/away specific win rates                                                                  |
+| **Defense**        | 5%     | Clean sheet rate                                                                              |
+| **Match Stats**    | 5%     | Possession, attacks, shots (includes **xG** at 28%, **xGD** at 15%, **Shot Accuracy** at 10%) |
+| **Reliability**    | 4%     | Team discipline based on cards (fewer cards = more reliable)                                  |
+
+**Note**: The Match Stats factor includes **xG (Expected Goals)** weighted at 28%, **xGD (Expected Goal Difference)** at 15%, and **Shot Accuracy** at 10% within that factor. The Reliability factor measures team discipline - teams with fewer yellow/red cards are more predictable and reliable for betting.
+
+### 📊 Key Statistical Predictors
+
+The model incorporates advanced statistical metrics that are proven predictors of soccer match outcomes:
+
+#### Expected Goals (xG)
+- **Premier metric** for evaluating the quality of scoring chances
+- Directly correlates with team success and future performance
+- Weighted at **28%** within the Match Stats factor (highest weight)
+- Calculated from historical match statistics, measuring shot quality and chance creation
+- Teams with higher xG averages are more likely to score and win
+
+#### Expected Goal Difference (xGD)
+- Strong predictor of a team's points per match over a season
+- Calculated as the difference between team's xG and opponent's xG (xG - xGA)
+- Weighted at **15%** within the Match Stats factor
+- Teams with positive xGD consistently outperform those with negative xGD
+
+#### Shots on Target
+- Often cited as the **strongest in-game correlate of winning**
+- Outperforms raw possession or total shots in predictive power
+- Weighted at **12%** within the Match Stats factor
+- More reliable indicator than total shots, as it measures actual goal-scoring opportunities
+
+#### Shot Accuracy
+- Measures the quality of chances created (shots on target / total shots)
+- **More predictive than total shots alone** - indicates better chance quality
+- Weighted at **10%** within the Match Stats factor
+- Teams with higher shot accuracy create better scoring opportunities
+
+#### Goal Conversion Rate
+- Measures efficiency in turning opportunities into actual goals
+- Calculated from goals scored relative to shots on target
+- Weighted at **8%** within the Match Stats factor
+- Teams with higher conversion rates are more clinical and dangerous
+
+#### Defensive Metrics (xGA - Expected Goals Against)
+- Lowering expected goals against is **as crucial for predicting wins** as high offensive xG
+- Measured through **goals conceded per game** in the Goals factor
+- **Defense factor (5% weight)** specifically evaluates clean sheet rates
+- Teams that consistently limit opponent chances (low xGA) are more likely to win
+
+#### How These Metrics Work Together
+
+The model combines these statistical predictors with traditional factors (form, position, H2H) to create a comprehensive prediction:
+
+- **Match Stats (5% total)**: 
+  - xG: **28%** (most predictive metric)
+  - xGD: **15%** (strong predictor of points per match)
+  - Possession: **18%**
+  - Shots on Target: **12%** (strongest in-game correlate)
+  - Shot Accuracy: **10%** (quality indicator)
+  - Goal Conversion Rate: **8%** (efficiency)
+  - Dangerous Attacks: **6%**
+  - Attacks: **2%**
+  - Corners: **1%**
+- **Goals (11%)**: Incorporates attack/defense differential (goals scored vs conceded)
+- **Defense (5%)**: Clean sheet rate as a proxy for defensive xGA performance
+
+This multi-layered approach ensures that both offensive quality (xG, xGD, shots on target, shot accuracy) and defensive solidity (xGA, clean sheets) are properly weighted in predictions.
 
 ### Double Chance Betting
 
@@ -216,67 +284,50 @@ Each prediction is assigned a grade based on backtest performance:
 
 ### 1-Week Backtest Results
 
-Based on 1-week backtests across all leagues (103 matches):
+Based on 1-week backtests across all leagues (147 matches):
 
 #### Aggregated Results
-- **Total Matches**: 103
-- **Correct Predictions**: 59
-- **Overall Accuracy**: 57.3%
-- **Draws Encountered**: 31 (30.1%)
-- **Accuracy (excl. draws)**: 81.9%
-- **Best Recommended Double Chance**: 87.4%
+- **Total Matches**: 147
+- **Correct Predictions**: 84
+- **Overall Accuracy**: 57.1%
+- **Draws Encountered**: 42 (28.6%)
+- **Accuracy (excl. draws)**: 80.0%
+- **Best Recommended Double Chance**: 84.3%
 
 #### League Comparison
 | League               | Matches | Accuracy | Excl. Draws | Best DC |
 | -------------------- | ------- | -------- | ----------- | ------- |
-| 🇮🇹 Serie A            | 8       | 87.5%    | **100.0%**  | 100.0%  |
-| 🇵🇹 Primeira Liga      | 7       | 71.4%    | **100.0%**  | 100.0%  |
-| 🇩🇪 Bundesliga         | 11      | 63.6%    | **87.5%**   | 90.9%   |
-| 🇸🇦 Saudi Pro League   | 12      | 58.3%    | **87.5%**   | 91.7%   |
-| 🇬🇧 Premier League     | 9       | 55.6%    | **83.3%**   | 88.9%   |
-| 🇫🇷 Ligue 1            | 9       | 55.6%    | **83.3%**   | 88.9%   |
-| 🇹🇷 Super Lig          | 8       | 62.5%    | **83.3%**   | 87.5%   |
+| 🇫🇷 Ligue 1            | 9       | 66.7%    | **100.0%**  | 100.0%  |
+| 🇬🇷 Super League       | 7       | 85.7%    | **100.0%**  | 100.0%  |
+| 🇸🇦 Saudi Pro League   | 15      | 60.0%    | **100.0%**  | 100.0%  |
+| 🇧🇷 Serie A            | 3       | 100.0%   | **100.0%**  | 100.0%  |
+| 🇲🇽 Liga MX            | 9       | 66.7%    | **100.0%**  | 100.0%  |
+| 🇮🇹 Serie A            | 10      | 80.0%    | **88.9%**   | 90.0%   |
+| 🇩🇪 Bundesliga         | 9       | 66.7%    | **85.7%**   | 88.9%   |
+| 🇬🇧 Premier League     | 10      | 60.0%    | **85.7%**   | 90.0%   |
+| 🇵🇹 Primeira Liga      | 9       | 66.7%    | **85.7%**   | 88.9%   |
+| 🇹🇷 Super Lig          | 9       | 66.7%    | **85.7%**   | 88.9%   |
 | 🇳🇱 Eredivisie         | 9       | 44.4%    | **80.0%**   | 88.9%   |
-| 🇶🇦 Qatar Stars League | 6       | 50.0%    | **75.0%**   | 83.3%   |
+| 🏴󠁧󠁢󠁳󠁣󠁴󠁿 Premiership        | 7       | 57.1%    | **80.0%**   | 85.7%   |
+| 🇵🇱 Ekstraklasa        | 9       | 77.8%    | **77.8%**   | 77.8%   |
+| 🇪🇸 La Liga            | 10      | 40.0%    | **66.7%**   | 80.0%   |
 | 🇧🇪 Belgian Pro League | 8       | 50.0%    | **66.7%**   | 75.0%   |
-| 🇦🇪 UAE Pro League     | 7       | 57.1%    | **66.7%**   | 71.4%   |
-| 🇪🇸 La Liga            | 9       | 33.3%    | **60.0%**   | 77.8%   |
+| 🇦🇷 Liga Professional  | 21      | 38.1%    | **66.7%**   | 81.0%   |
+| 🇭🇷 1. HNL             | 5       | 40.0%    | **50.0%**   | 60.0%   |
+| 🇦🇺 Hyundai A-League   | 5       | 40.0%    | **50.0%**   | 60.0%   |
 
-### 12-Week Backtest Results
-
-Based on 12-week backtests across all leagues (979 matches):
-
-#### Aggregated Results
-- **Total Matches**: 979
-- **Correct Predictions**: 553
-- **Overall Accuracy**: 56.5%
-- **Draws Encountered**: 262 (26.8%)
-- **Accuracy (excl. draws)**: 77.1%
-- **Best Recommended Double Chance**: 83.2%
-
-#### League Comparison
-| League               | Matches | Accuracy | Excl. Draws | Best DC |
-| -------------------- | ------- | -------- | ----------- | ------- |
-| 🇵🇹 Primeira Liga      | 79      | 64.6%    | **85.0%**   | 88.6%   |
-| 🇸🇦 Saudi Pro League   | 94      | 63.8%    | **82.2%**   | 86.2%   |
-| 🇹🇷 Super Lig          | 71      | 49.3%    | **81.4%**   | 88.7%   |
-| 🇩🇪 Bundesliga         | 89      | 58.4%    | **81.2%**   | 86.5%   |
-| 🇮🇹 Serie A            | 118     | 60.2%    | **78.0%**   | 83.1%   |
-| 🇫🇷 Ligue 1            | 72      | 62.5%    | **77.6%**   | 81.9%   |
-| 🇪🇸 La Liga            | 98      | 57.1%    | **76.7%**   | 82.7%   |
-| 🇳🇱 Eredivisie         | 79      | 50.6%    | **75.5%**   | 83.5%   |
-| 🇦🇪 UAE Pro League     | 49      | 55.1%    | **73.0%**   | 79.6%   |
-| 🇶🇦 Qatar Stars League | 29      | 62.1%    | **72.0%**   | 75.9%   |
-| 🇬🇧 Premier League     | 129     | 48.8%    | **70.8%**   | 79.8%   |
-| 🇧🇪 Belgian Pro League | 72      | 48.6%    | **68.6%**   | 77.8%   |
-
-### Key Findings
-- **1-week results** show higher accuracy (81.9% excl. draws) but smaller sample size (103 matches)
-- **12-week results** provide more reliable statistics with 77.1% accuracy (excl. draws) across 979 matches
-- **Double Chance** is the safest bet type with 83.2% accuracy (12-week) and 87.4% (1-week)
-- **Primeira Liga** and **Saudi Pro League** consistently show high accuracy across both time periods
-- **Draw rate**: 26.8% (12-week) to 30.1% (1-week) - use Double Chance for safer bets
-- **Best leagues for predictions**: Primeira Liga, Saudi Pro League, Super Lig, Bundesliga
+### Key Findings (1-Week Results)
+- **Overall accuracy**: 57.1% (80.0% excluding draws) across 147 matches
+- **Double Chance** is the safest bet type with **84.3% accuracy**
+- **Top performing leagues** (excl. draws):
+  - 🇫🇷 Ligue 1: 100.0% (9 matches)
+  - 🇬🇷 Super League: 100.0% (7 matches)
+  - 🇸🇦 Saudi Pro League: 100.0% (15 matches)
+  - 🇧🇷 Serie A: 100.0% (3 matches)
+  - 🇲🇽 Liga MX: 100.0% (9 matches)
+  - 🇮🇹 Serie A: 88.9% (10 matches)
+- **Draw rate**: 28.6% - use Double Chance for safer bets
+- **Best leagues for predictions**: Ligue 1, Super League, Saudi Pro League, Serie A (Brazil), Liga MX
 
 ## 💻 Direct CLI Usage
 
@@ -288,9 +339,9 @@ slickbet --days 5                 # Screen next 5 days
 
 # League filters
 slickbet --major-only             # Major European leagues only
-slickbet --gulf-only              # Persian Gulf leagues only
-slickbet --african-only           # African leagues only
-slickbet --all-leagues            # All supported leagues (Major + Minor European + Persian Gulf + African)
+slickbet --asia-only              # Asia leagues only (Saudi, Australia)
+slickbet --americas-only          # Americas leagues only (Argentina, Brazil, Mexico)
+slickbet --all-leagues            # All supported leagues (Major + Minor European + Asia + Americas)
 slickbet --league 2               # Specific league by ID
 
 # Probability filters
@@ -309,11 +360,11 @@ slickbet backtest --competition 2 --weeks 4 --pdf  # Export backtest to PDF
 slickbet backtest --competition 2 --weeks 4 --debug  # With detailed match-by-match debug output
 slickbet backtest-all --weeks 4                 # All major + minor European leagues
 slickbet backtest-all --weeks 4 --pdf           # Export aggregated results to PDF
-slickbet backtest-all --gulf-only --weeks 4     # All Persian Gulf leagues
-slickbet backtest-all --african-only --weeks 4  # All African leagues
-slickbet backtest-all --include-gulf --weeks 4  # Major + Minor European + Persian Gulf
-slickbet backtest-all --include-gulf --include-african --weeks 4  # Major + Minor European + Persian Gulf + African
-slickbet backtest-all --include-gulf --include-african --weeks 4 --debug  # With detailed match-by-match debug output
+slickbet backtest-all --asia-only --weeks 4     # All Asia leagues (Saudi, Australia)
+slickbet backtest-all --americas-only --weeks 4 # All Americas leagues (Argentina, Brazil, Mexico)
+slickbet backtest-all --include-asia --weeks 4 # Major + Minor European + Asia
+slickbet backtest-all --include-asia --include-americas --weeks 4  # Major + Minor European + Asia + Americas
+slickbet backtest-all --include-asia --include-americas --weeks 4 --debug  # With detailed match-by-match debug output
 ```
 
 ## 🐍 Python API
@@ -378,7 +429,7 @@ slick-bet/
 │   └── slickbet/
 │       ├── __init__.py      # Package exports
 │       ├── api.py           # Livescore API client
-│       ├── model.py         # 9-factor betting model
+│       ├── model.py         # 11-factor betting model (includes xG and reliability)
 │       ├── screener.py      # Main screener logic
 │       ├── backtest.py      # Backtesting module
 │       ├── cli.py           # Command-line interface

@@ -702,6 +702,33 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
     # Convert to Central Time for display
     central_time = to_central_time(match.kickoff_time)
     lines.append(f"⏰  {central_time.strftime('%Y-%m-%d %H:%M %Z')}")
+
+    # Match statistics indicator
+    if prediction.match_stats_used:
+        home_stats = match.home_performance.matches_with_stats if match.home_performance else 0
+        away_stats = match.away_performance.matches_with_stats if match.away_performance else 0
+        lines.append(
+            f"📊 Match Statistics: ✅ Used (Home: {home_stats}, Away: {away_stats} matches)"
+        )
+    else:
+        # Show why statistics weren't used
+        if match.home_performance and match.away_performance:
+            home_stats = match.home_performance.matches_with_stats
+            away_stats = match.away_performance.matches_with_stats
+            if home_stats == 0 and away_stats == 0:
+                lines.append(
+                    "📊 Match Statistics: ❌ Not available (no historical match statistics found)"
+                )
+            elif home_stats < 1 or away_stats < 1:
+                lines.append(
+                    f"📊 Match Statistics: ❌ Insufficient data (Home: {home_stats}, Away: {away_stats} matches, need ≥1 each)"
+                )
+            else:
+                lines.append(
+                    f"📊 Match Statistics: ❌ Not used (Home: {home_stats}, Away: {away_stats} matches, but score is 0)"
+                )
+        else:
+            lines.append("📊 Match Statistics: ❌ Not available (no performance data)")
     lines.append("")
 
     # PRIMARY: Double Chance Recommendation (shown first!)
@@ -773,6 +800,19 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
         lines.append(f"   • Defense (Clean Sheets): {prediction.defense_score:+.2f}")
     if prediction.momentum_score != 0:
         lines.append(f"   • Momentum (HT Lead/Consistency): {prediction.momentum_score:+.2f}")
+    # Match stats - show even if 0 to indicate status
+    if prediction.match_stats_used:
+        lines.append(
+            f"   • Match Stats (Possession/Attacks): {prediction.match_stats_score:+.2f} ✅"
+        )
+    elif match.home_performance and match.away_performance:
+        # Show why it wasn't used
+        home_stats = match.home_performance.matches_with_stats
+        away_stats = match.away_performance.matches_with_stats
+        if home_stats < 1 or away_stats < 1:
+            lines.append(
+                f"   • Match Stats: ❌ Insufficient data (Home: {home_stats}, Away: {away_stats} matches, need ≥1 each)"
+            )
     lines.append("")
 
     # Reasoning (filtered for key points)

@@ -10,6 +10,7 @@ This module implements a scoring system based on multiple factors:
 - Goal statistics (attack/defense strength)
 - Home/Away specific performance
 - Clean sheet rate
+- Match statistics averages (possession, attacks, shots on target)
 """
 
 from dataclasses import dataclass
@@ -79,6 +80,10 @@ class BetPrediction:
     venue_form_score: float = 0.0  # Home/away specific performance
     defense_score: float = 0.0  # Clean sheet and goals conceded differential
     momentum_score: float = 0.0  # First-half dominance and consistency
+    match_stats_score: float = (
+        0.0  # Match statistics averages (possession, attacks, shots)
+    )
+    reliability_score: float = 0.0  # Team reliability based on discipline (cards)
 
     # Draw risk assessment
     draw_risk: float = 0.0  # 0.0 to 1.0 (probability of draw)
@@ -98,6 +103,29 @@ class BetPrediction:
         # Assuming stake of 1 unit and odds of 2.0 (fair odds for 50%)
         return (self.probability * 1.0) - ((1 - self.probability) * 1.0)
 
+    @property
+    def match_stats_used(self) -> bool:
+        """
+        Check if match statistics were used in this prediction.
+
+        Returns
+        -------
+        bool
+            True if match statistics contributed to the prediction
+        """
+        if not self.match.home_performance or not self.match.away_performance:
+            return False
+
+        # Match stats were used if both teams have at least 1 match with statistics
+        # We check if statistics were available, not if the score is non-zero
+        # (score can be 0.0 if teams are evenly matched, but stats were still used)
+        home_stats = self.match.home_performance.matches_with_stats
+        away_stats = self.match.away_performance.matches_with_stats
+
+        # Statistics were used if we have data for both teams
+        # The score being 0.0 just means teams are evenly matched, not that stats weren't used
+        return home_stats >= 1 and away_stats >= 1
+
 
 class BettingModel:
     """
@@ -105,10 +133,12 @@ class BettingModel:
 
     The model uses a weighted scoring system combining multiple factors.
 
-    ENHANCED VERSION with 9 factors:
+    ENHANCED VERSION with 11 factors:
     - Core: Form, Position, Home Advantage, H2H, Odds
     - Goals: Attack/defense strength, Venue Form, Defense (clean sheets)
     - Momentum: First-half performance and consistency
+    - Match Stats: Historical averages (possession, attacks, shots on target)
+    - Reliability: Team discipline based on card counts (fewer cards = more reliable)
 
     Weights optimized based on 120-day backtest across 5 major leagues (704 matches):
     - Bundesliga: 81.3% accuracy (excl. draws)
@@ -119,17 +149,19 @@ class BettingModel:
     """
 
     # Weights for different factors (should sum to 1.0)
-    # Updated to include momentum metrics from API outcomes
+    # Updated to include momentum metrics and match statistics from API
     WEIGHTS = {
-        "form": 0.16,  # Recent form - reliable predictor
-        "position": 0.20,  # League standing - MOST predictive factor
+        "form": 0.15,  # Recent form - reliable predictor
+        "position": 0.19,  # League standing - MOST predictive factor
         "home": 0.09,  # Home advantage - consistent ~10% boost
         "h2h": 0.07,  # Head-to-head - less reliable due to sample size
-        "odds": 0.18,  # Bookmaker odds - highly predictive when available
-        "goals": 0.12,  # Attack/defense strength differential
+        "odds": 0.17,  # Bookmaker odds - highly predictive when available
+        "goals": 0.11,  # Attack/defense strength differential
         "venue_form": 0.06,  # Home/away specific performance
         "defense": 0.05,  # Clean sheets and defensive solidity
-        "momentum": 0.07,  # NEW: First-half dominance and consistency
+        "momentum": 0.06,  # First-half dominance and consistency
+        "match_stats": 0.05,  # Match statistics averages (possession, attacks, shots)
+        "reliability": 0.04,  # Team reliability based on discipline (cards)
     }
 
     # Home advantage baseline (home teams win ~46% of matches historically)
@@ -143,15 +175,17 @@ class BettingModel:
 
     def __init__(
         self,
-        form_weight: float = 0.16,
-        position_weight: float = 0.20,
+        form_weight: float = 0.15,
+        position_weight: float = 0.19,
         home_weight: float = 0.09,
         h2h_weight: float = 0.07,
-        odds_weight: float = 0.18,
-        goals_weight: float = 0.12,
+        odds_weight: float = 0.17,
+        goals_weight: float = 0.11,
         venue_form_weight: float = 0.06,
         defense_weight: float = 0.05,
-        momentum_weight: float = 0.07,
+        momentum_weight: float = 0.06,
+        match_stats_weight: float = 0.05,
+        reliability_weight: float = 0.04,
         min_confidence: float = 0.55,
     ):
         """
@@ -177,6 +211,10 @@ class BettingModel:
             Weight for clean sheet/defensive factor
         momentum_weight : float
             Weight for first-half dominance and consistency
+        match_stats_weight : float
+            Weight for match statistics averages (possession, attacks, shots)
+        reliability_weight : float
+            Weight for team reliability based on discipline (cards)
         min_confidence : float
             Minimum confidence threshold for recommendations
         """
@@ -190,6 +228,8 @@ class BettingModel:
             + venue_form_weight
             + defense_weight
             + momentum_weight
+            + match_stats_weight
+            + reliability_weight
         )
 
         # Normalize weights to sum to 1.0
@@ -203,6 +243,8 @@ class BettingModel:
             "venue_form": venue_form_weight / total,
             "defense": defense_weight / total,
             "momentum": momentum_weight / total,
+            "match_stats": match_stats_weight / total,
+            "reliability": reliability_weight / total,
         }
 
         self.min_confidence = min_confidence
@@ -252,6 +294,29 @@ class BettingModel:
         momentum_score, momentum_reasons = self._calculate_momentum_score(match)
         reasoning.extend(momentum_reasons)
 
+        match_stats_score, match_stats_reasons = self._calculate_match_stats_score(
+            match
+        )
+        reasoning.extend(match_stats_reasons)
+
+        reliability_score, reliability_reasons = self._calculate_reliability_score(
+            match
+        )
+        reasoning.extend(reliability_reasons)
+
+        # Adaptive weighting for match statistics based on data quality
+        # More weight when we have more matches with statistics
+        match_stats_weight = self.weights["match_stats"]
+        if match.home_performance and match.away_performance:
+            # Scale weight based on average matches with stats (0.0 to 1.0)
+            # Full weight at 5+ matches, reduced proportionally below that
+            home_stats = match.home_performance.matches_with_stats
+            away_stats = match.away_performance.matches_with_stats
+            avg_matches_with_stats = (home_stats + away_stats) / 2.0
+            # Scale factor: 0.0 (no data) to 1.0 (5+ matches)
+            data_quality_factor = min(avg_matches_with_stats / 5.0, 1.0)
+            match_stats_weight = match_stats_weight * data_quality_factor
+
         # Calculate weighted composite score
         # Score > 0 favors home team, score < 0 favors away team
         composite_score = (
@@ -264,6 +329,8 @@ class BettingModel:
             + venue_form_score * self.weights["venue_form"]
             + defense_score * self.weights["defense"]
             + momentum_score * self.weights["momentum"]
+            + match_stats_score * match_stats_weight
+            + reliability_score * self.weights["reliability"]
         )
 
         # Convert score to probability using sigmoid-like transformation
@@ -274,7 +341,9 @@ class BettingModel:
         # Calculate draw risk based on how close the composite score is to 0
         # Matches with evenly-matched teams are more likely to draw
         # Now also considers bookmaker draw odds and PPG proximity
-        draw_risk = self._calculate_draw_risk(composite_score, form_score, position_score, match)
+        draw_risk = self._calculate_draw_risk(
+            composite_score, form_score, position_score, match
+        )
         if draw_risk > self.DRAW_RISK_THRESHOLD:
             reasoning.append(f"⚠️ High draw risk detected ({draw_risk:.1%})")
 
@@ -321,6 +390,8 @@ class BettingModel:
             venue_form_score=venue_form_score,
             defense_score=defense_score,
             momentum_score=momentum_score,
+            match_stats_score=match_stats_score,
+            reliability_score=reliability_score,
             draw_risk=draw_risk,
             double_chance=double_chance,
             reasoning=reasoning,
@@ -428,7 +499,9 @@ class BettingModel:
 
         score = self.HOME_ADVANTAGE * 2  # Normalize to contribute positively
 
-        reasons = [f"Home advantage factor applied (+{self.HOME_ADVANTAGE:.0%} to home team)"]
+        reasons = [
+            f"Home advantage factor applied (+{self.HOME_ADVANTAGE:.0%} to home team)"
+        ]
 
         return score, reasons
 
@@ -575,7 +648,9 @@ class BettingModel:
         score = max(-1.0, min(1.0, score))
 
         reasons.append(f"⚽ Goals/game: Home {home_attack:.2f}, Away {away_attack:.2f}")
-        reasons.append(f"🛡️ Conceded/game: Home {home_defense:.2f}, Away {away_defense:.2f}")
+        reasons.append(
+            f"🛡️ Conceded/game: Home {home_defense:.2f}, Away {away_defense:.2f}"
+        )
 
         if score > 0.15:
             reasons.append("→ Home team has stronger goal stats")
@@ -651,7 +726,9 @@ class BettingModel:
         score = home_cs_rate - away_cs_rate
 
         if home_perf.matches_analyzed > 0 and away_perf.matches_analyzed > 0:
-            reasons.append(f"🧤 Clean sheet rate: Home {home_cs_rate:.0%}, Away {away_cs_rate:.0%}")
+            reasons.append(
+                f"🧤 Clean sheet rate: Home {home_cs_rate:.0%}, Away {away_cs_rate:.0%}"
+            )
 
         if home_cs_rate > 0.4:
             reasons.append("→ Home team defensively solid")
@@ -707,10 +784,14 @@ class BettingModel:
 
         # Add reasoning if significant
         if home_perf.ht_wins > 0 or away_perf.ht_wins > 0:
-            reasons.append(f"⏱️ HT lead rate: Home {home_ht_lead:.0%}, Away {away_ht_lead:.0%}")
+            reasons.append(
+                f"⏱️ HT lead rate: Home {home_ht_lead:.0%}, Away {away_ht_lead:.0%}"
+            )
 
         if home_perf.wins > 0 or away_perf.wins > 0:
-            reasons.append(f"📈 Win rate: Home {home_win_rate:.0%}, Away {away_win_rate:.0%}")
+            reasons.append(
+                f"📈 Win rate: Home {home_win_rate:.0%}, Away {away_win_rate:.0%}"
+            )
 
         if home_momentum > away_momentum + 0.1:
             reasons.append("→ Home team has stronger momentum")
@@ -718,6 +799,234 @@ class BettingModel:
             reasons.append("→ Away team has stronger momentum")
 
         return max(-1.0, min(1.0, score)), reasons
+
+    def _calculate_match_stats_score(self, match: Match) -> tuple[float, list[str]]:
+        """
+        Calculate score based on match statistics averages.
+
+        Teams with better possession, more attacks, and more shots on target
+        are generally stronger and more likely to win.
+
+        Based on historical match statistics from:
+        https://live-score-api.com/documentation/reference/23/match-statistics
+
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
+            Score range: -1.0 to 1.0 (positive favors home)
+        """
+        reasons = []
+
+        home_perf = match.home_performance
+        away_perf = match.away_performance
+
+        if not home_perf or not away_perf:
+            return 0.0, []
+
+        # Need at least some matches with statistics to make meaningful comparison
+        # Lowered to 1 to maximize coverage (statistics may not be available for all matches)
+        # If no stats available, return 0.0 but log for debugging
+        if home_perf.matches_with_stats < 1 or away_perf.matches_with_stats < 1:
+            # Match statistics not available - this is common for older matches
+            # The model will still work using other factors (form, position, etc.)
+            return 0.0, []
+
+        # Add info about data availability
+        reasons.append(
+            f"📊 Statistics data: Home {home_perf.matches_with_stats} matches, "
+            f"Away {away_perf.matches_with_stats} matches"
+        )
+
+        # Calculate differentials (normalized to -1 to 1 range)
+        # Possession: 0-100%, normalize by 100
+        possession_diff = (home_perf.avg_possession - away_perf.avg_possession) / 100.0
+
+        # Corners: typically 0-15 per game, normalize by 10
+        corners_diff = (home_perf.avg_corners - away_perf.avg_corners) / 10.0
+
+        # Attacks: typically 50-150 per game, normalize by 50
+        attacks_diff = (home_perf.avg_attacks - away_perf.avg_attacks) / 50.0
+
+        # Dangerous attacks: typically 20-80 per game, normalize by 30
+        dangerous_attacks_diff = (
+            home_perf.avg_dangerous_attacks - away_perf.avg_dangerous_attacks
+        ) / 30.0
+
+        # Shots on target: typically 2-8 per game, normalize by 5
+        shots_on_target_diff = (
+            home_perf.avg_shots_on_target - away_perf.avg_shots_on_target
+        ) / 5.0
+
+        # Expected Goals (xG): typically 0.5-3.0 per game, normalize by 2.0
+        # xG is one of the most predictive metrics for future performance
+        xg_diff = 0.0
+        if home_perf.avg_expected_goals > 0 and away_perf.avg_expected_goals > 0:
+            xg_diff = (
+                home_perf.avg_expected_goals - away_perf.avg_expected_goals
+            ) / 2.0
+
+        # Expected Goal Difference (xGD): xG - xGA
+        # Strong predictor of team's points per match over a season
+        xgd_diff = 0.0
+        if (
+            home_perf.avg_expected_goal_difference != 0
+            or away_perf.avg_expected_goal_difference != 0
+        ):
+            xgd_diff = (
+                home_perf.avg_expected_goal_difference
+                - away_perf.avg_expected_goal_difference
+            ) / 2.0
+
+        # Goal Conversion Rate: goals per shot on target
+        # Measures efficiency in turning opportunities into actual goals
+        conversion_diff = 0.0
+        if home_perf.goal_conversion_rate > 0 and away_perf.goal_conversion_rate > 0:
+            # Normalize by typical conversion rate (0.3 = 30%)
+            conversion_diff = (
+                home_perf.goal_conversion_rate - away_perf.goal_conversion_rate
+            ) / 0.3
+
+        # Shot Accuracy: shots on target / total shots
+        # Higher shot accuracy indicates better chance quality
+        shot_accuracy_diff = 0.0
+        if home_perf.shot_accuracy > 0 and away_perf.shot_accuracy > 0:
+            # Normalize by typical shot accuracy (0.4 = 40%)
+            shot_accuracy_diff = (
+                home_perf.shot_accuracy - away_perf.shot_accuracy
+            ) / 0.4
+
+        # Weighted combination
+        # xG and xGD are most predictive of winning
+        # Shot accuracy is often more predictive than total shots
+        score = (
+            xg_diff * 0.28  # xG is the most predictive metric
+            + xgd_diff * 0.15  # xGD predictor of points per match
+            + possession_diff * 0.18
+            + shots_on_target_diff * 0.12
+            + shot_accuracy_diff * 0.10  # Shot accuracy (quality)
+            + conversion_diff * 0.08  # Goal conversion rate
+            + dangerous_attacks_diff * 0.06
+            + attacks_diff * 0.02
+            + corners_diff * 0.01
+        )
+
+        # Clamp to -1 to 1
+        score = max(-1.0, min(1.0, score))
+
+        # Add reasoning
+        if home_perf.avg_expected_goals > 0 and away_perf.avg_expected_goals > 0:
+            reasons.append(
+                f"⚽ xG (Expected Goals): Home {home_perf.avg_expected_goals:.2f} vs Away {away_perf.avg_expected_goals:.2f}"
+            )
+        # Expected Goal Difference (xGD) - strong predictor of points per match
+        if (
+            home_perf.avg_expected_goal_difference != 0
+            or away_perf.avg_expected_goal_difference != 0
+        ):
+            reasons.append(
+                f"📈 xGD (Expected Goal Diff): Home {home_perf.avg_expected_goal_difference:.2f} vs Away {away_perf.avg_expected_goal_difference:.2f}"
+            )
+        # Expected Goals Against (xGA) - defensive metric
+        if (
+            home_perf.avg_expected_goals_against > 0
+            and away_perf.avg_expected_goals_against > 0
+        ):
+            reasons.append(
+                f"🛡️ xGA (Expected Goals Against): Home {home_perf.avg_expected_goals_against:.2f} vs Away {away_perf.avg_expected_goals_against:.2f}"
+            )
+        reasons.append(
+            f"📊 Possession: Home {home_perf.avg_possession:.1f}% vs Away {away_perf.avg_possession:.1f}%"
+        )
+        reasons.append(
+            f"🎯 Shots on target: Home {home_perf.avg_shots_on_target:.1f} vs Away {away_perf.avg_shots_on_target:.1f}"
+        )
+        # Shot Accuracy - quality indicator
+        if home_perf.shot_accuracy > 0 and away_perf.shot_accuracy > 0:
+            reasons.append(
+                f"🎪 Shot Accuracy: Home {home_perf.shot_accuracy:.1%} vs Away {away_perf.shot_accuracy:.1%}"
+            )
+        # Goal Conversion Rate - efficiency metric
+        if home_perf.goal_conversion_rate > 0 and away_perf.goal_conversion_rate > 0:
+            reasons.append(
+                f"🎪 Conversion Rate: Home {home_perf.goal_conversion_rate:.1%} vs Away {away_perf.goal_conversion_rate:.1%}"
+            )
+        reasons.append(
+            f"⚡ Attacks: Home {home_perf.avg_attacks:.1f} vs Away {away_perf.avg_attacks:.1f}"
+        )
+
+        if score > 0.15:
+            reasons.append("→ Home team has superior match statistics")
+        elif score < -0.15:
+            reasons.append("→ Away team has superior match statistics")
+
+        return score, reasons
+
+    def _calculate_reliability_score(self, match: Match) -> tuple[float, list[str]]:
+        """
+        Calculate score based on team reliability (discipline).
+
+        Teams with fewer cards are more reliable and predictable.
+        Cards indicate:
+        - Discipline issues (yellow cards)
+        - Player dismissals (red cards) = playing with fewer players
+        - Aggressive/unpredictable play style
+        - Higher risk of penalties and free kicks in dangerous areas
+
+        Lower cards = higher reliability = more predictable outcomes.
+
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
+            Score range: -1.0 to 1.0 (positive favors home)
+        """
+        reasons = []
+
+        home_perf = match.home_performance
+        away_perf = match.away_performance
+
+        if not home_perf or not away_perf:
+            return 0.0, []
+
+        # Use reliability_score from TeamPerformanceStats (0.0 to 1.0)
+        # Higher reliability = more predictable = better for betting
+        home_reliability = home_perf.reliability_score
+        away_reliability = away_perf.reliability_score
+
+        # Differential: positive favors home (home more reliable)
+        score = home_reliability - away_reliability
+
+        # Scale to -1.0 to 1.0 range
+        # Reliability difference of 1.0 (perfect vs unreliable) = 1.0 score
+        score = max(-1.0, min(1.0, score))
+
+        # Add reasoning
+        reasons.append(
+            f"🎯 Reliability: Home {home_reliability:.2f}, Away {away_reliability:.2f}"
+        )
+
+        if home_perf.matches_with_stats > 0:
+            reasons.append(
+                f"   Cards/game: Home {home_perf.avg_cards:.1f} "
+                f"(Y: {home_perf.avg_yellow_cards:.1f}, "
+                f"R: {home_perf.avg_red_cards:.1f})"
+            )
+        if away_perf.matches_with_stats > 0:
+            reasons.append(
+                f"   Cards/game: Away {away_perf.avg_cards:.1f} "
+                f"(Y: {away_perf.avg_yellow_cards:.1f}, "
+                f"R: {away_perf.avg_red_cards:.1f})"
+            )
+
+        if score > 0.15:
+            reasons.append("→ Home team more reliable (fewer cards)")
+        elif score < -0.15:
+            reasons.append("→ Away team more reliable (fewer cards)")
+        else:
+            reasons.append("→ Similar reliability levels")
+
+        return score, reasons
 
     def _calculate_draw_risk(
         self,
@@ -773,7 +1082,9 @@ class BettingModel:
                 implied_draw_prob = 1.0 / draw_odds
                 # Scale: if implied > 30%, increase draw factor
                 if implied_draw_prob > 0.30:
-                    odds_draw_factor = (implied_draw_prob - 0.26) * 2  # Boost for high draw odds
+                    odds_draw_factor = (
+                        implied_draw_prob - 0.26
+                    ) * 2  # Boost for high draw odds
                 elif implied_draw_prob < 0.22:
                     odds_draw_factor = -0.1  # Reduce for low draw odds
 

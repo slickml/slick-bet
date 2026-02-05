@@ -270,6 +270,52 @@ def export_screener_to_pdf(
                     styles["Normal"],
                 )
             )
+
+            # Match Statistics Indicator
+            if pred.match_stats_used:
+                home_stats = (
+                    match.home_performance.matches_with_stats if match.home_performance else 0
+                )
+                away_stats = (
+                    match.away_performance.matches_with_stats if match.away_performance else 0
+                )
+                story.append(
+                    Paragraph(
+                        f"<b>📊 Match Statistics:</b> ✅ <font color='#27ae60'>Used</font> "
+                        f"(Home: {home_stats}, Away: {away_stats} matches)",
+                        styles["Normal"],
+                    )
+                )
+            else:
+                # Show why statistics weren't used
+                if match.home_performance and match.away_performance:
+                    home_stats = match.home_performance.matches_with_stats
+                    away_stats = match.away_performance.matches_with_stats
+                    if home_stats == 0 and away_stats == 0:
+                        story.append(
+                            Paragraph(
+                                "<b>📊 Match Statistics:</b> ❌ <font color='#e74c3c'>Not available</font> "
+                                "(no historical match statistics found)",
+                                styles["Normal"],
+                            )
+                        )
+                    elif home_stats < 1 or away_stats < 1:
+                        story.append(
+                            Paragraph(
+                                f"<b>📊 Match Statistics:</b> ❌ <font color='#e74c3c'>Insufficient data</font> "
+                                f"(Home: {home_stats}, Away: {away_stats} matches, need ≥1 each)",
+                                styles["Normal"],
+                            )
+                        )
+                else:
+                    story.append(
+                        Paragraph(
+                            "<b>📊 Match Statistics:</b> ❌ <font color='#e74c3c'>Not available</font> "
+                            "(no performance data)",
+                            styles["Normal"],
+                        )
+                    )
+
             story.append(Spacer(1, 0.1 * inch))
 
             # Double Chance Recommendation
@@ -318,6 +364,25 @@ def export_screener_to_pdf(
                 analysis_data.append(["Defense (Clean Sheets)", f"{pred.defense_score:+.2f}"])
             if pred.momentum_score != 0:
                 analysis_data.append(["Momentum", f"{pred.momentum_score:+.2f}"])
+
+            # Match Statistics - show even if 0 to indicate status
+            if pred.match_stats_used:
+                analysis_data.append(
+                    [
+                        "Match Stats (Possession/Attacks)",
+                        f"{pred.match_stats_score:+.2f} ✅",
+                    ]
+                )
+            elif match.home_performance and match.away_performance:
+                home_stats = match.home_performance.matches_with_stats
+                away_stats = match.away_performance.matches_with_stats
+                if home_stats < 1 or away_stats < 1:
+                    analysis_data.append(
+                        [
+                            "Match Stats",
+                            f"❌ Insufficient (H:{home_stats}, A:{away_stats})",
+                        ]
+                    )
 
             analysis_table = Table(analysis_data, colWidths=[2.5 * inch, 1.5 * inch])
             analysis_table.setStyle(
