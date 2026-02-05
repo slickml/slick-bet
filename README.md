@@ -5,7 +5,7 @@ A Python-based betting screener for soccer games using the Livescore API. Fetche
 ## Features
 
 - 📅 **Multi-Day Screening** - Screen matches for the next N days
-- 📊 **11-Factor Analysis** - Comprehensive statistical model with xG and reliability metrics
+- 📊 **12-Factor Analysis** - Comprehensive statistical model with xG (Expected Goals), match stats, and reliability metrics
 - 🎲 **Double Chance Bets** - Safer betting options (1X, X2, 12)
 - 🏆 **Major European Leagues** - Bundesliga, Premier League, La Liga, Serie A, Ligue 1
 - 🌍 **Minor European Leagues** - Belgian Pro League, Primeira Liga, Super Lig, Eredivisie, 1. HNL, Ekstraklasa, Premiership, Super League

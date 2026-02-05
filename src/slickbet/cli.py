@@ -922,6 +922,7 @@ def output_json(predictions: list, result) -> None:
                     "position_score": round(pred.position_score, 4),
                     "home_advantage_score": round(pred.home_advantage_score, 4),
                     "h2h_score": round(pred.h2h_score, 4),
+                    "xg_score": round(pred.xg_score, 4),
                 },
                 "reasoning": pred.reasoning,
             }
