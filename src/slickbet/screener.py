@@ -805,7 +805,9 @@ def format_prediction(prediction: BetPrediction, rank: int = 0) -> str:
         lines.append(
             f"   • Match Stats (Possession/Attacks): {prediction.match_stats_score:+.2f} ✅"
         )
-    elif match.home_performance and match.away_performance:
+    if prediction.xg_score != 0:
+        lines.append(f"   • xG (Expected Goals): {prediction.xg_score:+.2f}")
+    if prediction.match_stats_used is False and match.home_performance and match.away_performance:
         # Show why it wasn't used
         home_stats = match.home_performance.matches_with_stats
         away_stats = match.away_performance.matches_with_stats

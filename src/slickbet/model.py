@@ -83,6 +83,7 @@ class BetPrediction:
     match_stats_score: float = (
         0.0  # Match statistics averages (possession, attacks, shots)
     )
+    xg_score: float = 0.0  # Expected Goals (xG) differential
     reliability_score: float = 0.0  # Team reliability based on discipline (cards)
 
     # Draw risk assessment
@@ -133,11 +134,12 @@ class BettingModel:
 
     The model uses a weighted scoring system combining multiple factors.
 
-    ENHANCED VERSION with 11 factors:
+    ENHANCED VERSION with 12 factors:
     - Core: Form, Position, Home Advantage, H2H, Odds
     - Goals: Attack/defense strength, Venue Form, Defense (clean sheets)
     - Momentum: First-half performance and consistency
     - Match Stats: Historical averages (possession, attacks, shots on target)
+    - xG: Expected Goals differential (quality of chances created)
     - Reliability: Team discipline based on card counts (fewer cards = more reliable)
 
     Weights optimized based on 120-day backtest across 5 major leagues (704 matches):
@@ -161,6 +163,7 @@ class BettingModel:
         "defense": 0.05,  # Clean sheets and defensive solidity
         "momentum": 0.06,  # First-half dominance and consistency
         "match_stats": 0.05,  # Match statistics averages (possession, attacks, shots)
+        "xg": 0.05,  # Expected Goals (xG) - quality of chances created
         "reliability": 0.04,  # Team reliability based on discipline (cards)
     }
 
@@ -185,6 +188,7 @@ class BettingModel:
         defense_weight: float = 0.05,
         momentum_weight: float = 0.06,
         match_stats_weight: float = 0.05,
+        xg_weight: float = 0.05,
         reliability_weight: float = 0.04,
         min_confidence: float = 0.55,
     ):
@@ -213,6 +217,8 @@ class BettingModel:
             Weight for first-half dominance and consistency
         match_stats_weight : float
             Weight for match statistics averages (possession, attacks, shots)
+        xg_weight : float
+            Weight for Expected Goals (xG) differential
         reliability_weight : float
             Weight for team reliability based on discipline (cards)
         min_confidence : float
@@ -229,6 +235,7 @@ class BettingModel:
             + defense_weight
             + momentum_weight
             + match_stats_weight
+            + xg_weight
             + reliability_weight
         )
 
@@ -244,6 +251,7 @@ class BettingModel:
             "defense": defense_weight / total,
             "momentum": momentum_weight / total,
             "match_stats": match_stats_weight / total,
+            "xg": xg_weight / total,
             "reliability": reliability_weight / total,
         }
 
@@ -299,6 +307,9 @@ class BettingModel:
         )
         reasoning.extend(match_stats_reasons)
 
+        xg_score, xg_reasons = self._calculate_xg_score(match)
+        reasoning.extend(xg_reasons)
+
         reliability_score, reliability_reasons = self._calculate_reliability_score(
             match
         )
@@ -317,6 +328,18 @@ class BettingModel:
             data_quality_factor = min(avg_matches_with_stats / 5.0, 1.0)
             match_stats_weight = match_stats_weight * data_quality_factor
 
+        # Adaptive weighting for xG when both teams have xG data
+        xg_weight = self.weights["xg"]
+        if match.home_performance and match.away_performance:
+            if (
+                match.home_performance.avg_expected_goals <= 0
+                or match.away_performance.avg_expected_goals <= 0
+            ):
+                xg_weight = 0.0
+            else:
+                avg_matches = (match.home_performance.matches_with_stats + match.away_performance.matches_with_stats) / 2.0
+                xg_weight = xg_weight * min(avg_matches / 5.0, 1.0)
+
         # Calculate weighted composite score
         # Score > 0 favors home team, score < 0 favors away team
         composite_score = (
@@ -330,6 +353,7 @@ class BettingModel:
             + defense_score * self.weights["defense"]
             + momentum_score * self.weights["momentum"]
             + match_stats_score * match_stats_weight
+            + xg_score * xg_weight
             + reliability_score * self.weights["reliability"]
         )
 
@@ -391,6 +415,7 @@ class BettingModel:
             defense_score=defense_score,
             momentum_score=momentum_score,
             match_stats_score=match_stats_score,
+            xg_score=xg_score,
             reliability_score=reliability_score,
             draw_risk=draw_risk,
             double_chance=double_chance,
@@ -858,26 +883,6 @@ class BettingModel:
             home_perf.avg_shots_on_target - away_perf.avg_shots_on_target
         ) / 5.0
 
-        # Expected Goals (xG): typically 0.5-3.0 per game, normalize by 2.0
-        # xG is one of the most predictive metrics for future performance
-        xg_diff = 0.0
-        if home_perf.avg_expected_goals > 0 and away_perf.avg_expected_goals > 0:
-            xg_diff = (
-                home_perf.avg_expected_goals - away_perf.avg_expected_goals
-            ) / 2.0
-
-        # Expected Goal Difference (xGD): xG - xGA
-        # Strong predictor of team's points per match over a season
-        xgd_diff = 0.0
-        if (
-            home_perf.avg_expected_goal_difference != 0
-            or away_perf.avg_expected_goal_difference != 0
-        ):
-            xgd_diff = (
-                home_perf.avg_expected_goal_difference
-                - away_perf.avg_expected_goal_difference
-            ) / 2.0
-
         # Goal Conversion Rate: goals per shot on target
         # Measures efficiency in turning opportunities into actual goals
         conversion_diff = 0.0
@@ -896,37 +901,22 @@ class BettingModel:
                 home_perf.shot_accuracy - away_perf.shot_accuracy
             ) / 0.4
 
-        # Weighted combination
-        # xG and xGD are most predictive of winning
-        # Shot accuracy is often more predictive than total shots
+        # Weighted combination (xG/xGD moved to separate xg factor)
+        # Weights scaled so remaining factors sum to 1.0
         score = (
-            xg_diff * 0.28  # xG is the most predictive metric
-            + xgd_diff * 0.15  # xGD predictor of points per match
-            + possession_diff * 0.18
-            + shots_on_target_diff * 0.12
-            + shot_accuracy_diff * 0.10  # Shot accuracy (quality)
-            + conversion_diff * 0.08  # Goal conversion rate
-            + dangerous_attacks_diff * 0.06
-            + attacks_diff * 0.02
+            possession_diff * 0.32
+            + shots_on_target_diff * 0.21
+            + shot_accuracy_diff * 0.18  # Shot accuracy (quality)
+            + conversion_diff * 0.14  # Goal conversion rate
+            + dangerous_attacks_diff * 0.11
+            + attacks_diff * 0.03
             + corners_diff * 0.01
         )
 
         # Clamp to -1 to 1
         score = max(-1.0, min(1.0, score))
 
-        # Add reasoning
-        if home_perf.avg_expected_goals > 0 and away_perf.avg_expected_goals > 0:
-            reasons.append(
-                f"⚽ xG (Expected Goals): Home {home_perf.avg_expected_goals:.2f} vs Away {away_perf.avg_expected_goals:.2f}"
-            )
-        # Expected Goal Difference (xGD) - strong predictor of points per match
-        if (
-            home_perf.avg_expected_goal_difference != 0
-            or away_perf.avg_expected_goal_difference != 0
-        ):
-            reasons.append(
-                f"📈 xGD (Expected Goal Diff): Home {home_perf.avg_expected_goal_difference:.2f} vs Away {away_perf.avg_expected_goal_difference:.2f}"
-            )
+        # Add reasoning (xG/xGD reasoning in _calculate_xg_score)
         # Expected Goals Against (xGA) - defensive metric
         if (
             home_perf.avg_expected_goals_against > 0
@@ -959,6 +949,52 @@ class BettingModel:
             reasons.append("→ Home team has superior match statistics")
         elif score < -0.15:
             reasons.append("→ Away team has superior match statistics")
+
+        return score, reasons
+
+    def _calculate_xg_score(self, match: Match) -> tuple[float, list[str]]:
+        """
+        Calculate score based on Expected Goals (xG) differential.
+
+        xG measures quality of chances created; higher xG indicates better
+        chance creation. Used as a standalone factor with its own weight.
+
+        Returns
+        -------
+        tuple[float, list[str]]
+            Tuple of (score, reasoning_list).
+            Score range: -1.0 to 1.0 (positive favors home).
+        """
+        reasons = []
+        if not match.home_performance or not match.away_performance:
+            return 0.0, reasons
+
+        home_perf = match.home_performance
+        away_perf = match.away_performance
+
+        if home_perf.avg_expected_goals <= 0 and away_perf.avg_expected_goals <= 0:
+            return 0.0, reasons
+
+        # Normalize xG diff by typical range (e.g. 2.0 per game)
+        xg_diff = (
+            home_perf.avg_expected_goals - away_perf.avg_expected_goals
+        ) / 2.0
+        score = max(-1.0, min(1.0, xg_diff))
+
+        reasons.append(
+            f"⚽ xG (Expected Goals): Home {home_perf.avg_expected_goals:.2f} vs Away {away_perf.avg_expected_goals:.2f}"
+        )
+        if (
+            home_perf.avg_expected_goal_difference != 0
+            or away_perf.avg_expected_goal_difference != 0
+        ):
+            reasons.append(
+                f"📈 xGD: Home {home_perf.avg_expected_goal_difference:.2f} vs Away {away_perf.avg_expected_goal_difference:.2f}"
+            )
+        if score > 0.15:
+            reasons.append("→ Home team creates higher quality chances (xG)")
+        elif score < -0.15:
+            reasons.append("→ Away team creates higher quality chances (xG)")
 
         return score, reasons
 

@@ -373,7 +373,9 @@ def export_screener_to_pdf(
                         f"{pred.match_stats_score:+.2f} ✅",
                     ]
                 )
-            elif match.home_performance and match.away_performance:
+            if pred.xg_score != 0:
+                analysis_data.append(["xG (Expected Goals)", f"{pred.xg_score:+.2f}"])
+            if not pred.match_stats_used and match.home_performance and match.away_performance:
                 home_stats = match.home_performance.matches_with_stats
                 away_stats = match.away_performance.matches_with_stats
                 if home_stats < 1 or away_stats < 1:
