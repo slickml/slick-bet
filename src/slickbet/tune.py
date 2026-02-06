@@ -42,6 +42,7 @@ MINOR_LEAGUES = [
 ASIA_LEAGUES = [
     ("313", "Saudi Pro League", "Saudi Arabia"),
     ("67", "Hyundai A-League", "Australia"),
+    ("28", "J. League", "Japan"),
 ]
 AMERICAS_LEAGUES = [
     ("23", "Liga Professional", "Argentina"),

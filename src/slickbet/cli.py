@@ -4,7 +4,7 @@ Command-line interface for the SlickBet betting screener.
 
 import argparse
 import sys
-from datetime import datetime
+from datetime import date, datetime, time
 
 from slickbet.api import LivescoreAPIError, LivescoreClient
 from slickbet.backtest import Backtester, format_backtest_report
@@ -399,7 +399,7 @@ First populate the cache:
     filter_group.add_argument(
         "--asia-only",
         action="store_true",
-        help="Only show Asia leagues (Saudi Pro League, Hyundai A-League/Australia)",
+        help="Only show Asia leagues (Saudi, Australia, J. League Japan)",
     )
 
     filter_group.add_argument(
@@ -419,7 +419,7 @@ First populate the cache:
         type=str,
         action="append",
         metavar="ID",
-        help="Filter by league ID: 1=Bundesliga, 2=PL, 3=LaLiga, 4=SerieA, 5=Ligue1, 313=Saudi, 67=Australia, 23=Argentina, 24=Brazil, 45=Mexico, 17=Croatia, 60=Poland, 75=Scotland, 9=Greece",
+        help="Filter by league ID: 1=Bundesliga, 2=PL, 3=LaLiga, 4=SerieA, 5=Ligue1, 313=Saudi, 67=Australia, 28=Japan J.League, 23=Argentina, 24=Brazil, 45=Mexico, 17=Croatia, 60=Poland, 75=Scotland, 9=Greece",
     )
 
     # Output options
@@ -672,6 +672,7 @@ def run_backtest_all(args: argparse.Namespace) -> int:
     ASIA_LEAGUES = [
         ("313", "🇸🇦 Saudi Pro League", "Saudi Arabia"),
         ("67", "🇦🇺 Hyundai A-League", "Australia"),
+        ("28", "🇯🇵 J. League", "Japan"),
     ]
 
     # Americas leagues
@@ -974,15 +975,11 @@ def run_screener(args: argparse.Namespace) -> int:
                 return 1
             result = screener.screen_date(date)
         elif args.days == 0:
-            # Screen matches for today
-            today = datetime.now()
-            result = screener.screen_date(today)
-        elif args.days > 1:
-            # Multiple days ahead
-            result = screener.screen_days(days=args.days)
+            # Screen matches for today (calendar day)
+            result = screener.screen_date(datetime.combine(date.today(), time.min))
         else:
-            # Default: tomorrow only
-            result = screener.screen_tomorrow()
+            # days >= 1: calendar-day logic; same day shows same games as first day of --days=2
+            result = screener.screen_days(days=args.days)
 
         # Filter by outcome type if requested
         predictions = result.predictions

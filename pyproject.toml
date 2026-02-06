@@ -246,6 +246,20 @@ args = [
 ]
 help = "Run screener for Saudi Pro League only"
 
+[tool.poe.tasks.run-japan]
+shell = "slickbet --days ${days} --league 28 --top ${top} $@"
+args = [
+    { name = "days", default = "7", options = [
+        "--days",
+        "-d",
+    ] },
+    { name = "top", default = "10", options = [
+        "--top",
+        "-k",
+    ] },
+]
+help = "Run screener for J. League (Japan) only"
+
 [tool.poe.tasks.run-qatar]
 shell = "slickbet --days ${days} --league 305 --top ${top} $@"
 args = [
@@ -355,6 +369,16 @@ args = [
 ]
 help = "Backtest on Saudi Pro League for N weeks"
 
+[tool.poe.tasks.backtest-japan]
+shell = "slickbet backtest --competition 28 --weeks ${weeks} $@"
+args = [
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
+]
+help = "Backtest on J. League (Japan) for N weeks"
+
 [tool.poe.tasks.backtest-qatar]
 shell = "slickbet backtest --competition 305 --weeks ${weeks} $@"
 args = [
@@ -397,7 +421,7 @@ args = [
     { name = "cache_dir", default = "", options = ["--cache-dir"] },
     { name = "cache_only", default = "", options = ["--cache-only"] },
 ]
-help = "Backtest on ALL Asia leagues (Saudi, Australia) with aggregated results. Use --cache-dir and --cache-only for API caching."
+help = "Backtest on ALL Asia leagues (Saudi, Australia, Japan) with aggregated results. Use --cache-dir and --cache-only for API caching."
 
 [tool.poe.tasks.backtest-all-global]
 shell = "slickbet backtest-all --include-asia --include-americas --weeks ${weeks} ${debug:+--debug} ${cache_dir:+--cache-dir }${cache_dir} ${cache_only:+--cache-only}"

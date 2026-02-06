@@ -4,7 +4,7 @@ Betting screener for finding and ranking soccer betting opportunities.
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from slickbet.api import LivescoreAPIError, LivescoreClient, Match
@@ -57,19 +57,23 @@ MINOR_LEAGUE_IDS = {
     "9": "🇬🇷 Super League",
 }
 
-# Asia leagues (Saudi Pro League, Australia)
+# Asia leagues (Saudi Pro League, Australia, Japan)
 ASIA_LEAGUE_NAMES = [
     "saudi",
     "pro league",  # Saudi Pro League often listed as just "Pro League" or "Premier League"
     "hyundai a-league",
     "a-league",
     "australia",
+    "j. league",
+    "j league",
+    "japan",
 ]
 
 # Competition IDs for Asia leagues
 ASIA_LEAGUE_IDS = {
     "313": "🇸🇦 Saudi Pro League",
     "67": "🇦🇺 Hyundai A-League",
+    "28": "🇯🇵 J. League",
 }
 
 # Americas leagues (Argentina, Brazil, Mexico)
@@ -110,6 +114,7 @@ ALL_LEAGUE_IDS = {
     # Asia
     "313": "🇸🇦 Saudi Pro League",
     "67": "🇦🇺 Hyundai A-League",
+    "28": "🇯🇵 J. League",
     # Americas
     "23": "🇦🇷 Liga Professional",
     "24": "🇧🇷 Serie A",
@@ -183,7 +188,7 @@ class ScreenerConfig:
     # Only show major European leagues (Bundesliga, PL, La Liga, Serie A, Ligue 1)
     major_leagues_only: bool = False
 
-    # Only show Asia leagues (Saudi Pro League, Australia)
+    # Only show Asia leagues (Saudi Pro League, Australia, J. League Japan)
     asia_leagues_only: bool = False
 
     # Only show Americas leagues (Argentina, Brazil, Mexico)
@@ -277,15 +282,15 @@ class BettingScreener:
 
     def screen_tomorrow(self) -> ScreenerResult:
         """
-        Screen tomorrow's matches for betting opportunities.
+        Screen tomorrow's matches (next calendar day, all fixtures that day).
 
-        Returns
-        -------
-        ScreenerResult
-            ScreenerResult with ranked predictions
+        Uses calendar-day logic so results are invariant of run time:
+        e.g. running at 8am or 11pm both get the same "tomorrow" fixtures.
         """
+        tomorrow_date = date.today() + timedelta(days=1)
+        target = datetime.combine(tomorrow_date, time.min)
         print("🔍 Fetching tomorrow's fixtures...")
-        matches = self._get_filtered_fixtures(datetime.now() + timedelta(days=1))
+        matches = self._get_filtered_fixtures(target)
         print(f"   Found {len(matches)} matches")
 
         return self._screen_matches(matches)
@@ -312,12 +317,15 @@ class BettingScreener:
 
     def screen_days(self, days: int = 7) -> ScreenerResult:
         """
-        Screen matches for the next N days.
+        Screen matches for the next N calendar days (not 24-hour windows).
+
+        Uses calendar-day logic so results are invariant of run time;
+        each day includes all games that kick off that day in Central time.
 
         Parameters
         ----------
         days : int, optional
-            Number of days to screen (default: 7)
+            Number of calendar days to screen (default: 7)
 
         Returns
         -------
@@ -325,18 +333,19 @@ class BettingScreener:
             ScreenerResult with ranked predictions from all days
         """
         all_matches = []
-        today = datetime.now()
+        today_date = date.today()
 
         print(f"🔍 Fetching fixtures for the next {days} days...")
 
         for day_offset in range(1, days + 1):
-            date = today + timedelta(days=day_offset)
+            day_date = today_date + timedelta(days=day_offset)
+            target = datetime.combine(day_date, time.min)
             try:
-                matches = self._get_filtered_fixtures(date)
+                matches = self._get_filtered_fixtures(target)
                 all_matches.extend(matches)
-                print(f"   {date.strftime('%Y-%m-%d')}: {len(matches)} matches")
+                print(f"   {day_date.strftime('%Y-%m-%d')}: {len(matches)} matches")
             except LivescoreAPIError as e:
-                print(f"   {date.strftime('%Y-%m-%d')}: ⚠ Error fetching ({e})")
+                print(f"   {day_date.strftime('%Y-%m-%d')}: ⚠ Error fetching ({e})")
                 continue
 
         print(f"   Total: {len(all_matches)} matches")
@@ -345,50 +354,67 @@ class BettingScreener:
 
     def _get_filtered_fixtures(self, date: datetime) -> list[Match]:
         """
-        Get fixtures for a date, using optimized API filtering when possible.
+        Get fixtures for a calendar day, using optimized API filtering when possible.
 
-        Uses fixtures/list.json endpoint with competition_id filtering when
-        filtering by league type (major, minor, asia, all) for better performance.
+        The API returns fixtures by UTC date. Late local-time games (e.g. 21:06 CST)
+        can be 03:06 UTC next day, so we fetch this date and the next UTC day then
+        filter by calendar day in Central time so --days=1 and day-one of --days=2
+        show the same games.
 
         Parameters
         ----------
         date : datetime
-            The date to fetch fixtures for
+            The calendar day to fetch fixtures for (local day, e.g. "tomorrow")
 
         Returns
         -------
         list[Match]
-            List of Match objects
+            List of Match objects whose kickoff falls on that day in Central time
         """
-        # If filtering by specific competition IDs, use the optimized endpoint
-        if self.config.competition_ids:
-            return self.client.get_fixtures_list(
-                date=date, competition_ids=list(self.config.competition_ids)
-            )
+        target_date = date.date() if hasattr(date, "date") else date
+        next_date = target_date + timedelta(days=1)
+        date_dt = datetime.combine(target_date, time.min)
+        next_dt = datetime.combine(next_date, time.min)
 
-        # If filtering by league type, use competition IDs for that type
-        competition_ids = None
-        if self.config.major_leagues_only:
-            competition_ids = list(MAJOR_LEAGUE_IDS)
-        elif self.config.asia_leagues_only:
-            competition_ids = list(ASIA_LEAGUE_IDS)
-        elif self.config.americas_leagues_only:
-            competition_ids = list(AMERICAS_LEAGUE_IDS)
-        elif self.config.all_leagues:
-            # Combine all supported league IDs
-            competition_ids = (
-                list(MAJOR_LEAGUE_IDS)
-                + list(MINOR_LEAGUE_IDS)
-                + list(ASIA_LEAGUE_IDS)
-                + list(AMERICAS_LEAGUE_IDS)
-            )
+        def fetch(dt: datetime) -> list[Match]:
+            if self.config.competition_ids:
+                return self.client.get_fixtures_list(
+                    date=dt, competition_ids=list(self.config.competition_ids)
+                )
+            competition_ids = None
+            if self.config.major_leagues_only:
+                competition_ids = list(MAJOR_LEAGUE_IDS)
+            elif self.config.asia_leagues_only:
+                competition_ids = list(ASIA_LEAGUE_IDS)
+            elif self.config.americas_leagues_only:
+                competition_ids = list(AMERICAS_LEAGUE_IDS)
+            elif self.config.all_leagues:
+                competition_ids = (
+                    list(MAJOR_LEAGUE_IDS)
+                    + list(MINOR_LEAGUE_IDS)
+                    + list(ASIA_LEAGUE_IDS)
+                    + list(AMERICAS_LEAGUE_IDS)
+                )
+            if competition_ids:
+                return self.client.get_fixtures_list(
+                    date=dt, competition_ids=competition_ids
+                )
+            return self.client.get_fixtures_by_date(dt)
 
-        if competition_ids:
-            # Use optimized endpoint with competition_id filtering
-            return self.client.get_fixtures_list(date=date, competition_ids=competition_ids)
-
-        # Fall back to regular endpoint for other filters
-        return self.client.get_fixtures_by_date(date)
+        matches_today = fetch(date_dt)
+        matches_next = fetch(next_dt)
+        seen_ids: set[str] = set()
+        merged: list[Match] = []
+        for m in matches_today + matches_next:
+            if m.id in seen_ids:
+                continue
+            seen_ids.add(m.id)
+            merged.append(m)
+        return [
+            m
+            for m in merged
+            if to_central_time(m.kickoff_time).date() == target_date
+        ]
 
     def _screen_matches(self, matches: list[Match]) -> ScreenerResult:
         """
@@ -418,6 +444,8 @@ class BettingScreener:
         # Generate predictions
         print("🎯 Generating predictions...")
         predictions = []
+        dropped_low_prob: list[tuple[BetPrediction, str]] = []
+        dropped_low_conf: list[tuple[BetPrediction, str]] = []
 
         for match in filtered_matches:
             try:
@@ -429,6 +457,15 @@ class BettingScreener:
                     and prediction.confidence >= self.config.min_confidence
                 ):
                     predictions.append(prediction)
+                else:
+                    if prediction.probability < self.config.min_probability:
+                        dropped_low_prob.append(
+                            (prediction, f"prob={prediction.probability:.1%} < {self.config.min_probability:.2f}")
+                        )
+                    if prediction.confidence < self.config.min_confidence:
+                        dropped_low_conf.append(
+                            (prediction, f"conf={prediction.confidence:.2f} < {self.config.min_confidence:.2f}")
+                        )
 
             except Exception as e:
                 # Skip matches that fail prediction
@@ -438,6 +475,24 @@ class BettingScreener:
                 continue
 
         print(f"✅ Generated {len(predictions)} actionable predictions")
+        # Log dropped-by-threshold summary and list
+        if dropped_low_prob or dropped_low_conf:
+            # Dedupe: a match can be in both lists; count unique matches dropped
+            dropped_matches: dict[str, tuple[BetPrediction, list[str]]] = {}
+            for pred, reason in dropped_low_prob:
+                key = f"{pred.match.home_team.name} vs {pred.match.away_team.name}"
+                dropped_matches.setdefault(key, (pred, []))[1].append(reason)
+            for pred, reason in dropped_low_conf:
+                key = f"{pred.match.home_team.name} vs {pred.match.away_team.name}"
+                dropped_matches.setdefault(key, (pred, []))[1].append(reason)
+            n_dropped = len(dropped_matches)
+            print(f"   📉 Dropped {n_dropped} match(es) below --min-prob/--min-conf:")
+            for key, (pred, reasons) in sorted(dropped_matches.items(), key=lambda x: -get_best_double_chance_prob(x[1][0]))[:15]:
+                prob_str = f"prob={pred.probability:.1%}"
+                conf_str = f"conf={pred.confidence:.2f}"
+                print(f"      • {key}: {prob_str}, {conf_str} ({'; '.join(reasons)})")
+            if n_dropped > 15:
+                print(f"      ... and {n_dropped - 15} more (lower ranked)")
 
         return ScreenerResult(
             predictions=predictions,
@@ -468,7 +523,10 @@ class BettingScreener:
                 print(f"   🏟️ Asia leagues: {', '.join(sorted(leagues_found))}")
             else:
                 print("   ⚠️  No Asia league fixtures found in API")
-                print("   ℹ️  Asia leagues: Saudi Pro League, Hyundai A-League (Australia)")
+                print(
+                    "   ℹ️  Asia leagues: Saudi Pro League, Hyundai A-League (Australia), "
+                    "J. League (Japan)"
+                )
 
         # Filter by Americas leagues only
         elif self.config.americas_leagues_only:
@@ -577,7 +635,7 @@ class BettingScreener:
 
     def _is_asia_league(self, match: Match) -> bool:
         """
-        Check if a match is from one of the Asia leagues (Saudi Arabia, Australia).
+        Check if a match is from one of the Asia leagues (Saudi, Australia, Japan).
 
         Uses competition_id for reliable identification, avoiding name-based heuristics.
         """
