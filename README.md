@@ -9,7 +9,7 @@ A Python-based betting screener for soccer games using the Livescore API. Fetche
 - 🎲 **Double Chance Bets** - Safer betting options (1X, X2, 12)
 - 🏆 **Major European Leagues** - Bundesliga, Premier League, La Liga, Serie A, Ligue 1
 - 🌍 **Minor European Leagues** - Belgian Pro League, Primeira Liga, Super Lig, Eredivisie, 1. HNL, Ekstraklasa, Premiership, Super League
-- 🌏 **Asia Leagues** - Saudi Pro League, Hyundai A-League (Australia)
+- 🌏 **Asia Leagues** - Saudi Pro League, Hyundai A-League (Australia), J. League (Japan)
 - 🌎 **Americas Leagues** - Liga Professional (Argentina), Serie A (Brazil), Liga MX (Mexico)
 - 🎯 **Confidence Grades** - Visual indicators (🔥 HIGH VALUE, ✅ GOOD BET, 👍 DECENT, ⚠️ RISKY)
 - 📈 **Backtesting** - Validate model accuracy against historical data
@@ -86,7 +86,8 @@ poe backtest-all-global --weeks=1
 | ---------------------------- | ---------------------------------- |
 | `poe run-asia --days N`      | Screen all Asia leagues for N days |
 | `poe run-saudi --days N`     | 🇸🇦 Saudi Pro League only            |
-| `poe run-australia --days N` | 🇦🇺 Hyundai A-League only            |
+| `poe run-australia --days N`  | 🇦🇺 Hyundai A-League only            |
+| `poe run-japan --days N`     | 🇯🇵 J. League only                  |
 
 #### Americas Leagues
 | Command                      | Description                            |
@@ -109,7 +110,7 @@ poe backtest-all-global --weeks=1
 | Command                                       | Description                                                     |
 | --------------------------------------------- | --------------------------------------------------------------- |
 | `poe backtest-all --weeks N`                  | Backtest ALL major + minor European leagues                     |
-| `poe backtest-asia --weeks N`                 | Backtest ALL Asia leagues (Saudi, Australia)                    |
+| `poe backtest-asia --weeks N`                 | Backtest ALL Asia leagues (Saudi, Australia, Japan)              |
 | `poe backtest-all-global --weeks N`           | Backtest ALL leagues (Major + Minor European + Asia + Americas) |
 | `poe backtest-all-global --weeks N --debug=1` | Same as above with detailed match-by-match debug output         |
 
@@ -172,6 +173,7 @@ The script reports the best weights and prints code you can copy into `model.py`
 | `poe backtest-ligue1 --weeks N`     | 🇫🇷 Ligue 1           |
 | `poe backtest-saudi --weeks N`      | 🇸🇦 Saudi Pro League  |
 | `poe backtest-australia --weeks N`  | 🇦🇺 Hyundai A-League  |
+| `poe backtest-japan --weeks N`      | 🇯🇵 J. League         |
 | `poe backtest-argentina --weeks N`  | 🇦🇷 Liga Professional |
 | `poe backtest-brazil --weeks N`     | 🇧🇷 Serie A           |
 | `poe backtest-mexico --weeks N`     | 🇲🇽 Liga MX           |
@@ -217,6 +219,7 @@ The script reports the best weights and prints code you can copy into `model.py`
 | --- | ---------------- | -------------- |
 | 313 | Saudi Pro League | 🇸🇦 Saudi Arabia |
 | 67  | Hyundai A-League | 🇦🇺 Australia    |
+| 28  | J. League        | 🇯🇵 Japan        |
 
 ### Americas Leagues
 | ID  | League            | Country     |
@@ -445,7 +448,7 @@ slickbet --days 5                 # Screen next 5 days
 
 # League filters
 slickbet --major-only             # Major European leagues only
-slickbet --asia-only              # Asia leagues only (Saudi, Australia)
+slickbet --asia-only              # Asia leagues only (Saudi, Australia, Japan)
 slickbet --americas-only          # Americas leagues only (Argentina, Brazil, Mexico)
 slickbet --all-leagues            # All supported leagues (Major + Minor European + Asia + Americas)
 slickbet --league 2               # Specific league by ID
@@ -466,7 +469,7 @@ slickbet backtest --competition 2 --weeks 4 --pdf  # Export backtest to PDF
 slickbet backtest --competition 2 --weeks 4 --debug  # With detailed match-by-match debug output
 slickbet backtest-all --weeks 4                 # All major + minor European leagues
 slickbet backtest-all --weeks 4 --pdf           # Export aggregated results to PDF
-slickbet backtest-all --asia-only --weeks 4     # All Asia leagues (Saudi, Australia)
+slickbet backtest-all --asia-only --weeks 4     # All Asia leagues (Saudi, Australia, Japan)
 slickbet backtest-all --americas-only --weeks 4 # All Americas leagues (Argentina, Brazil, Mexico)
 slickbet backtest-all --include-asia --weeks 4 # Major + Minor European + Asia
 slickbet backtest-all --include-asia --include-americas --weeks 4  # Major + Minor European + Asia + Americas
