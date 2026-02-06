@@ -120,6 +120,48 @@ poe backtest-all-global --weeks=1
 - Whether the prediction was correct or incorrect
 - Key reasoning factors
 
+#### Backtest API cache (fast reruns & hyperparameter tuning)
+
+When backtesting over many weeks (e.g. 12), the same API data is reused across runs. You can cache all API responses locally so later runs and hyperparameter optimization avoid the API entirely:
+
+1. **First run** – fetch and cache (e.g. 12 weeks, one or more leagues):
+
+   ```bash
+   slickbet backtest --weeks 12 --cache-dir data/api_cache
+   # or
+   slickbet backtest-all --weeks 12 --cache-dir data/api_cache
+   ```
+
+2. **Later runs** – use cache only (no API calls, no credentials needed):
+
+   ```bash
+   slickbet backtest --weeks 12 --cache-dir data/api_cache --cache-only
+   ```
+
+Use the same `--cache-dir` for all runs so the cache is shared. The cache is keyed by endpoint and request parameters (e.g. competition, date range, team IDs), so it works across different backtest commands. Ideal for tuning model weights or running many backtest variants without re-fetching.
+
+**Note**: For `poe backtest-all-global`, use `--cache-only=1` (with `=1`) when running offline.
+
+#### Hyperparameter tuning
+
+After populating the cache, run tuning to find better model weights:
+
+```bash
+# Tune with 20 random weight configurations (default)
+slickbet tune --cache-dir data/api_cache
+
+# Or via poe
+poe tune --cache-dir data/12_weeks_cache
+
+# More trials, optimize double-chance accuracy
+slickbet tune --cache-dir data/api_cache --trials 50 --metric best_dc
+
+# Perturb near defaults instead of fully random
+slickbet tune --cache-dir data/api_cache --strategy near_default
+```
+
+The script reports the best weights and prints code you can copy into `model.py`.
+
 #### Individual League Backtests
 | Command                             | Description         |
 | ----------------------------------- | ------------------- |
@@ -328,6 +370,94 @@ Based on 1-week backtests across all leagues (147 matches):
   - 🇮🇹 Serie A: 88.9% (10 matches)
 - **Draw rate**: 28.6% - use Double Chance for safer bets
 - **Best leagues for predictions**: Ligue 1, Super League, Saudi Pro League, Serie A (Brazil), Liga MX
+
+### 12-Week Backtest Results (Tuned Weights)
+
+Weights below were tuned via `slickbet tune` on 12 weeks of cached data (all leagues). The model uses these weights by default.
+
+#### Current model weights (`BettingModel.WEIGHTS`)
+
+| Factor        | Weight  |
+| ------------- | ------- |
+| venue_form    | 20.57%  |
+| momentum      | 11.95%  |
+| defense       | 10.42%  |
+| reliability   | 8.74%   |
+| goals         | 8.55%   |
+| home          | 9.45%   |
+| match_stats   | 7.06%   |
+| form          | 3.33%   |
+| h2h           | 6.05%   |
+| odds          | 5.49%   |
+| position      | 4.74%   |
+| xg            | 3.65%   |
+
+Raw values in code:
+
+```python
+WEIGHTS = {
+    "defense": 0.1042,
+    "form": 0.0333,
+    "goals": 0.0855,
+    "h2h": 0.0605,
+    "home": 0.0945,
+    "match_stats": 0.0706,
+    "momentum": 0.1195,
+    "odds": 0.0549,
+    "position": 0.0474,
+    "reliability": 0.0874,
+    "venue_form": 0.2057,
+    "xg": 0.0365,
+}
+```
+
+#### Latest league comparison (after tuning)
+
+| League                     | Matches | Accuracy | Excl. Draws | Best DC |
+| -------------------------- | ------- | -------- | ----------- | ------- |
+| 🇸🇦 Saudi Pro League       | 102     | 69.6%    | 91.0%       | 93.1%   |
+| 🇵🇹 Primeira Liga          | 81      | 67.9%    | 88.7%       | 91.4%   |
+| 🇬🇷 Super League           | 60      | 70.0%    | 87.5%       | 90.0%   |
+| 🇭🇷 1. HNL                 | 33      | 60.6%    | 87.0%       | 90.9%   |
+| 🇵🇱 Ekstraklasa            | 39      | 66.7%    | 86.7%       | 89.7%   |
+| 🇳🇱 Eredivisie             | 79      | 57.0%    | 84.9%       | 89.9%   |
+| 🇫🇷 Ligue 1                | 72      | 66.7%    | 82.8%       | 86.1%   |
+| 🇹🇷 Super Lig              | 72      | 50.0%    | 81.8%       | 88.9%   |
+| 🇮🇹 Serie A                | 120     | 63.3%    | 81.7%       | 85.8%   |
+| 🏴󠁧󠁢󠁳󠁣󠁴󠁿 Premiership       | 78      | 62.8%    | 81.7%       | 85.9%   |
+| 🇲🇽 Liga MX                | 53      | 58.5%    | 79.5%       | 84.9%   |
+| 🇪🇸 La Liga                | 99      | 58.6%    | 78.4%       | 83.8%   |
+| 🇩🇪 Bundesliga             | 89      | 56.2%    | 78.1%       | 84.3%   |
+| 🇦🇷 Liga Professional      | 75      | 49.3%    | 75.5%       | 84.0%   |
+| 🇧🇷 Serie A                 | 68      | 57.4%    | 75.0%       | 80.9%   |
+| 🇧🇪 Belgian Pro League     | 72      | 52.8%    | 74.5%       | 81.9%   |
+| 🇬🇧 Premier League         | 130     | 50.0%    | 72.2%       | 80.8%   |
+| 🇦🇺 Hyundai A-League       | 65      | 58.5%    | 70.4%       | 75.4%   |
+
+#### Before vs after tuning (comparison)
+
+| League                     | Accuracy (before → after)      | Excl. draws (before → after)   | Best DC (before → after)       |
+| -------------------------- | ------------------------------ | ------------------------------- | ------------------------------ |
+| Saudi Pro League           | 67.6% → **69.6%** (+2.0)       | 88.5% → **91.0%** (+2.5)        | 91.2% → **93.1%** (+1.9)       |
+| Primeira Liga              | 66.7% → **67.9%** (+1.2)       | 87.1% → **88.7%** (+1.6)        | 90.1% → **91.4%** (+1.3)       |
+| Super League               | 70.0% → 70.0% (0)             | 87.5% → 87.5% (0)              | 90.0% → 90.0% (0)             |
+| 1. HNL                     | 57.6% → **60.6%** (+3.0)       | 82.6% → **87.0%** (+4.4)        | 87.9% → **90.9%** (+3.0)      |
+| Ekstraklasa                | 61.5% → **66.7%** (+5.2)       | 80.0% → **86.7%** (+6.7)       | 84.6% → **89.7%** (+5.1)      |
+| Eredivisie                 | 57.0% → 57.0% (0)             | 84.9% → 84.9% (0)              | 89.9% → 89.9% (0)             |
+| Ligue 1                    | 65.3% → **66.7%** (+1.4)       | 81.0% → **82.8%** (+1.8)       | 84.7% → **86.1%** (+1.4)      |
+| Super Lig                  | 50.0% → 50.0% (0)             | 81.8% → 81.8% (0)              | 88.9% → 88.9% (0)             |
+| Serie A                    | 62.5% → **63.3%** (+0.8)       | 80.6% → **81.7%** (+1.1)       | 85.0% → **85.8%** (+0.8)      |
+| Premiership                | 64.1% → 62.8% (−1.3)          | 83.3% → 81.7% (−1.6)           | 87.2% → 85.9% (−1.3)          |
+| Liga MX                    | 60.4% → 58.5% (−1.9)           | 82.1% → 79.5% (−2.6)           | 86.8% → 84.9% (−1.9)          |
+| La Liga                    | 57.6% → **58.6%** (+1.0)       | 77.0% → **78.4%** (+1.4)       | 82.8% → **83.8%** (+1.0)      |
+| Bundesliga                 | 53.9% → **56.2%** (+2.3)       | 75.0% → **78.1%** (+3.1)       | 82.0% → **84.3%** (+2.3)      |
+| Liga Professional          | 50.7% → 49.3% (−1.4)          | 77.6% → 75.5% (−2.1)           | 85.3% → 84.0% (−1.3)          |
+| Serie A (Brazil)           | 58.8% → 57.4% (−1.4)          | 76.9% → 75.0% (−1.9)           | 82.4% → 80.9% (−1.5)          |
+| Belgian Pro League         | 48.6% → **52.8%** (+4.2)      | 68.6% → **74.5%** (+5.9)       | 77.8% → **81.9%** (+4.1)      |
+| Premier League             | 49.2% → **50.0%** (+0.8)      | 71.1% → **72.2%** (+1.1)       | 80.0% → **80.8%** (+0.8)      |
+| Hyundai A-League           | 56.9% → **58.5%** (+1.6)      | 68.5% → **70.4%** (+1.9)       | 73.8% → **75.4%** (+1.6)      |
+
+Tuning improved most leagues (especially Ekstraklasa, 1. HNL, Belgian Pro League); a few (Premiership, Liga MX, Liga Professional, Serie A Brazil) are slightly worse with the tuned weights.
 
 ## 💻 Direct CLI Usage
 

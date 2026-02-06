@@ -6,9 +6,12 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import requests
+
+from slickbet.cache import ApiCache
 
 
 @dataclass
@@ -501,7 +504,13 @@ class LivescoreClient:
 
     BASE_URL = "https://livescore-api.com/api-client"
 
-    def __init__(self, api_key: str | None = None, api_secret: str | None = None):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        api_secret: str | None = None,
+        cache_dir: str | Path | None = None,
+        cache_only: bool = False,
+    ):
         """
         Initialize the Livescore API client.
 
@@ -511,22 +520,38 @@ class LivescoreClient:
             API key (defaults to LIVESCORE_API_KEY env var)
         api_secret : str or None, optional
             API secret (defaults to LIVESCORE_API_SECRET env var)
+        cache_dir : str or Path or None, optional
+            If set, cache API responses under this directory for fast
+            backtesting and hyperparameter optimization.
+        cache_only : bool, optional
+            If True and cache_dir is set, only read from cache; do not call
+            the API. Use for offline backtest runs. Raises on cache miss.
         """
         self.api_key = api_key or os.environ.get("LIVESCORE_API_KEY")
         self.api_secret = api_secret or os.environ.get("LIVESCORE_API_SECRET")
 
-        if not self.api_key or not self.api_secret:
+        if not cache_only and (not self.api_key or not self.api_secret):
             raise LivescoreAPIError(
                 "API credentials not found. Set LIVESCORE_API_KEY and "
                 "LIVESCORE_API_SECRET environment variables."
             )
 
+        self.cache: ApiCache | None = (
+            ApiCache(Path(cache_dir)) if cache_dir else None
+        )
+        self.cache_only = bool(cache_only) and self.cache is not None
+
         self.session = requests.Session()
-        self.session.headers.update({"Accept": "application/json", "User-Agent": "SlickBet/1.0"})
+        self.session.headers.update(
+            {"Accept": "application/json", "User-Agent": "SlickBet/1.0"}
+        )
 
     def _make_request(self, endpoint: APIEndpoint | str, params: dict | None = None) -> dict:
         """
         Make an authenticated request to the API.
+
+        If cache_dir is set, responses are read from / written to the cache.
+        With cache_only=True, only cache is used (no network calls).
 
         Parameters
         ----------
@@ -540,16 +565,24 @@ class LivescoreClient:
         dict
             JSON response as dictionary
         """
-        # Convert enum to string if needed
         endpoint_str = endpoint.value if isinstance(endpoint, APIEndpoint) else endpoint
-        url = f"{self.BASE_URL}/{endpoint_str}"
 
-        # Build request parameters with authentication
+        # Cache lookup (key uses only endpoint + params, not credentials)
+        if self.cache is not None:
+            cached = self.cache.get(endpoint_str, params)
+            if cached is not None:
+                return cached
+            if self.cache_only:
+                raise LivescoreAPIError(
+                    f"Cache miss for {endpoint_str} (cache_only=True). "
+                    "Run once without cache_only to populate the cache."
+                )
+
+        url = f"{self.BASE_URL}/{endpoint_str}"
         request_params = {
             "key": self.api_key,
             "secret": self.api_secret,
         }
-
         if params:
             request_params.update(params)
 
@@ -558,7 +591,6 @@ class LivescoreClient:
             response.raise_for_status()
             data = response.json()
 
-            # Check for API-level errors
             if isinstance(data, dict) and not data.get("success", True):
                 error_obj = data.get("error", {})
                 if isinstance(error_obj, dict):
@@ -568,6 +600,9 @@ class LivescoreClient:
                 else:
                     error_msg = str(error_obj)
                 raise LivescoreAPIError(f"API error: {error_msg}")
+
+            if self.cache is not None:
+                self.cache.set(endpoint_str, params, data)
 
             return data
 

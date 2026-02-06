@@ -376,37 +376,49 @@ args = [
 help = "Backtest on UAE Pro League for N weeks"
 
 [tool.poe.tasks.backtest-all]
-shell = "slickbet backtest-all --weeks ${weeks} $@"
+shell = "slickbet backtest-all --weeks ${weeks} ${cache_dir:+--cache-dir }${cache_dir} ${cache_only:+--cache-only} $@"
 args = [
     { name = "weeks", default = "4", options = [
         "--weeks",
         "-w",
     ] },
+    { name = "cache_dir", default = "", options = ["--cache-dir"] },
+    { name = "cache_only", default = "", options = ["--cache-only"] },
 ]
-help = "Backtest on ALL major leagues with aggregated results"
+help = "Backtest on ALL major leagues with aggregated results. Use --cache-dir DIR and optionally --cache-only for API caching."
 
 [tool.poe.tasks.backtest-asia]
-shell = "slickbet backtest-all --asia-only --weeks ${weeks} $@"
+shell = "slickbet backtest-all --asia-only --weeks ${weeks} ${cache_dir:+--cache-dir }${cache_dir} ${cache_only:+--cache-only} $@"
 args = [
     { name = "weeks", default = "4", options = [
         "--weeks",
         "-w",
     ] },
+    { name = "cache_dir", default = "", options = ["--cache-dir"] },
+    { name = "cache_only", default = "", options = ["--cache-only"] },
 ]
-help = "Backtest on ALL Asia leagues (Saudi, Australia) with aggregated results"
+help = "Backtest on ALL Asia leagues (Saudi, Australia) with aggregated results. Use --cache-dir and --cache-only for API caching."
 
 [tool.poe.tasks.backtest-all-global]
-shell = "slickbet backtest-all --include-asia --include-americas --weeks ${weeks} ${debug:+--debug}"
+shell = "slickbet backtest-all --include-asia --include-americas --weeks ${weeks} ${debug:+--debug} ${cache_dir:+--cache-dir }${cache_dir} ${cache_only:+--cache-only}"
 args = [
-    { name = "weeks", default = "4", options = [
-        "--weeks",
-        "-w",
-    ] },
-    { name = "debug", default = "", options = [
-        "--debug",
-    ] },
+    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
+    { name = "debug", default = "", options = ["--debug"] },
+    { name = "cache_dir", default = "", options = ["--cache-dir"] },
+    { name = "cache_only", default = "", options = ["--cache-only"] },
 ]
-help = "Backtest on ALL leagues (Major + Minor European + Asia + Americas) with aggregated results. Use --debug=1 to enable debug output."
+help = "Backtest on ALL leagues. Use --cache-dir DIR and --cache-only=1 for offline cached runs."
+
+[tool.poe.tasks.tune]
+shell = "slickbet tune --cache-dir ${cache_dir} --weeks ${weeks} --trials ${trials} ${strategy:+--strategy }${strategy} ${metric:+--metric }${metric}"
+args = [
+    { name = "cache_dir", default = "data/12_weeks_cache", options = ["--cache-dir"] },
+    { name = "weeks", default = "12", options = ["--weeks", "-w"] },
+    { name = "trials", default = "20", options = ["--trials"] },
+    { name = "strategy", default = "random", options = ["--strategy"] },
+    { name = "metric", default = "accuracy_excl_draws", options = ["--metric"] },
+]
+help = "Hyperparameter tuning using cached data. Populate cache first: poe backtest-all-global --weeks 12 --cache-dir data/12_weeks_cache"
 
 [tool.poe.tasks.backtest-json]
 cmd = "slickbet backtest --json"
