@@ -229,23 +229,24 @@ Use `slickbet competitions --country <name>` to find more competition IDs.
 
 ## 🧠 How the Model Works
 
-The betting model uses an **11-factor weighted scoring system** with advanced statistics:
+The betting model uses a **12-factor weighted scoring system** (tuned weights) with advanced statistics:
 
 | Factor             | Weight | Description                                                                                   |
 | ------------------ | ------ | --------------------------------------------------------------------------------------------- |
-| **Position**       | 19%    | League table standing differential                                                            |
-| **Odds**           | 17%    | Bookmaker pre-match odds (implied probability)                                                |
-| **Form**           | 15%    | Recent match results (last 5 games)                                                           |
-| **Goals**          | 11%    | Attack/defense strength (goals scored/conceded per game)                                      |
-| **Home Advantage** | 9%     | Historical home team advantage                                                                |
-| **Momentum**       | 6%     | First-half lead rate + win rate + comeback ability                                            |
-| **H2H**            | 7%     | Historical head-to-head record                                                                |
-| **Venue Form**     | 6%     | Home/away specific win rates                                                                  |
-| **Defense**        | 5%     | Clean sheet rate                                                                              |
-| **Match Stats**    | 5%     | Possession, attacks, shots (includes **xG** at 28%, **xGD** at 15%, **Shot Accuracy** at 10%) |
-| **Reliability**    | 4%     | Team discipline based on cards (fewer cards = more reliable)                                  |
+| **Venue Form**     | 20.6%  | Home/away specific win rates                                                                  |
+| **Momentum**       | 12.0%  | First-half lead rate + win rate + comeback ability                                            |
+| **Defense**        | 10.4%  | Clean sheet rate                                                                              |
+| **Home Advantage** | 9.5%   | Historical home team advantage                                                                |
+| **Reliability**    | 8.7%   | Team discipline based on cards (fewer cards = more reliable)                                  |
+| **Goals**          | 8.6%   | Attack/defense strength (goals scored/conceded per game)                                      |
+| **Match Stats**    | 7.1%   | Possession, attacks, shots (xG is a separate factor below)                                    |
+| **H2H**            | 6.1%   | Historical head-to-head record                                                                |
+| **Odds**           | 5.5%   | Bookmaker pre-match odds (implied probability)                                                |
+| **Position**       | 4.7%   | League table standing differential                                                            |
+| **Form**           | 3.3%   | Recent match results (last 5 games)                                                           |
+| **xG**             | 3.7%   | Expected Goals differential (quality of chances created)                                     |
 
-**Note**: The Match Stats factor includes **xG (Expected Goals)** weighted at 28%, **xGD (Expected Goal Difference)** at 15%, and **Shot Accuracy** at 10% within that factor. The Reliability factor measures team discipline - teams with fewer yellow/red cards are more predictable and reliable for betting.
+**Note**: Weights are from hyperparameter tuning (`slickbet tune`). xG is a standalone factor; Match Stats covers possession, shots on target, shot accuracy, and related stats. Reliability measures discipline (fewer cards = more predictable).
 
 ### 📊 Key Statistical Predictors
 
@@ -254,58 +255,46 @@ The model incorporates advanced statistical metrics that are proven predictors o
 #### Expected Goals (xG)
 - **Premier metric** for evaluating the quality of scoring chances
 - Directly correlates with team success and future performance
-- Weighted at **28%** within the Match Stats factor (highest weight)
+- **Standalone factor (3.7% weight)** in the model; also referenced in Match Stats reasoning (xGD)
 - Calculated from historical match statistics, measuring shot quality and chance creation
 - Teams with higher xG averages are more likely to score and win
 
 #### Expected Goal Difference (xGD)
 - Strong predictor of a team's points per match over a season
 - Calculated as the difference between team's xG and opponent's xG (xG - xGA)
-- Weighted at **15%** within the Match Stats factor
+- Shown in xG factor reasoning; Match Stats factor uses possession, shots, conversion, etc.
 - Teams with positive xGD consistently outperform those with negative xGD
 
-#### Shots on Target
-- Often cited as the **strongest in-game correlate of winning**
-- Outperforms raw possession or total shots in predictive power
-- Weighted at **12%** within the Match Stats factor
-- More reliable indicator than total shots, as it measures actual goal-scoring opportunities
-
-#### Shot Accuracy
-- Measures the quality of chances created (shots on target / total shots)
-- **More predictive than total shots alone** - indicates better chance quality
-- Weighted at **10%** within the Match Stats factor
-- Teams with higher shot accuracy create better scoring opportunities
+#### Shots on Target & Shot Accuracy
+- Shots on target are often cited as the **strongest in-game correlate of winning**
+- Shot accuracy (on target / total shots) indicates chance quality
+- Both feed into the **Match Stats factor (7.1%)** along with possession, conversion, attacks, corners
+- More reliable than raw possession or total shots alone
 
 #### Goal Conversion Rate
 - Measures efficiency in turning opportunities into actual goals
 - Calculated from goals scored relative to shots on target
-- Weighted at **8%** within the Match Stats factor
+- Part of the Match Stats factor
 - Teams with higher conversion rates are more clinical and dangerous
 
 #### Defensive Metrics (xGA - Expected Goals Against)
 - Lowering expected goals against is **as crucial for predicting wins** as high offensive xG
 - Measured through **goals conceded per game** in the Goals factor
-- **Defense factor (5% weight)** specifically evaluates clean sheet rates
+- **Defense factor (10.4% weight)** specifically evaluates clean sheet rates
 - Teams that consistently limit opponent chances (low xGA) are more likely to win
 
 #### How These Metrics Work Together
 
 The model combines these statistical predictors with traditional factors (form, position, H2H) to create a comprehensive prediction:
 
-- **Match Stats (5% total)**: 
-  - xG: **28%** (most predictive metric)
-  - xGD: **15%** (strong predictor of points per match)
-  - Possession: **18%**
-  - Shots on Target: **12%** (strongest in-game correlate)
-  - Shot Accuracy: **10%** (quality indicator)
-  - Goal Conversion Rate: **8%** (efficiency)
-  - Dangerous Attacks: **6%**
-  - Attacks: **2%**
-  - Corners: **1%**
-- **Goals (11%)**: Incorporates attack/defense differential (goals scored vs conceded)
-- **Defense (5%)**: Clean sheet rate as a proxy for defensive xGA performance
+- **Venue Form (20.6%)**: Home/away specific performance (tuned weight)
+- **Momentum (12.0%)**: First-half dominance and consistency
+- **Defense (10.4%)**: Clean sheet rate as a proxy for defensive solidity
+- **Goals (8.6%)**: Attack/defense differential (goals scored vs conceded)
+- **Match Stats (7.1%)**: Possession, shots on target, shot accuracy, conversion, attacks, corners (xG is a separate 3.7% factor)
+- **xG (3.7%)**: Expected Goals differential as a standalone factor
 
-This multi-layered approach ensures that both offensive quality (xG, xGD, shots on target, shot accuracy) and defensive solidity (xGA, clean sheets) are properly weighted in predictions.
+This multi-layered approach ensures that both offensive quality (xG, goals, shots) and defensive solidity (clean sheets, goals conceded) are properly weighted in predictions.
 
 ### Double Chance Betting
 
