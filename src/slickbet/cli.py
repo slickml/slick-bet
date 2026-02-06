@@ -8,6 +8,7 @@ from datetime import datetime
 
 from slickbet.api import LivescoreAPIError, LivescoreClient
 from slickbet.backtest import Backtester, format_backtest_report
+from slickbet.tune import format_best_weights, tune
 from slickbet.pdf_export import (
     export_backtest_all_to_pdf,
     export_backtest_to_pdf,
@@ -148,6 +149,20 @@ Examples:
         help="Show detailed match-by-match predictions and results",
     )
 
+    backtest_parser.add_argument(
+        "--cache-dir",
+        type=str,
+        metavar="DIR",
+        default=None,
+        help="Cache API responses under DIR for fast reruns and hyperparameter tuning",
+    )
+
+    backtest_parser.add_argument(
+        "--cache-only",
+        action="store_true",
+        help="Use only cached data (no API calls). Use after a run with --cache-dir.",
+    )
+
     # Backtest-all subcommand (all major leagues)
     backtest_all_parser = subparsers.add_parser(
         "backtest-all",
@@ -235,6 +250,83 @@ Examples:
         "--debug",
         action="store_true",
         help="Show detailed match-by-match predictions and results",
+    )
+
+    backtest_all_parser.add_argument(
+        "--cache-dir",
+        type=str,
+        metavar="DIR",
+        default=None,
+        help="Cache API responses under DIR for fast reruns",
+    )
+
+    backtest_all_parser.add_argument(
+        "--cache-only",
+        action="store_true",
+        help="Use only cached data (no API calls)",
+    )
+
+    # Tune subcommand (hyperparameter search using cached data)
+    tune_parser = subparsers.add_parser(
+        "tune",
+        help="Hyperparameter tuning using cached backtest data",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  slickbet tune --cache-dir data/12_weeks_cache
+  slickbet tune --cache-dir data/12_weeks_cache --trials 30 --metric best_dc
+  slickbet tune --cache-dir data/12_weeks_cache --strategy near_default
+
+First populate the cache:
+  slickbet backtest-all --weeks 12 --cache-dir data/12_weeks_cache
+        """,
+    )
+    tune_parser.add_argument(
+        "--cache-dir",
+        type=str,
+        required=True,
+        metavar="DIR",
+        help="Cache directory (from prior backtest with --cache-dir)",
+    )
+    tune_parser.add_argument(
+        "--weeks",
+        type=int,
+        default=12,
+        metavar="N",
+        help="Weeks of data (must match cache, default: 12)",
+    )
+    tune_parser.add_argument(
+        "--trials",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Number of weight configurations to try (default: 20)",
+    )
+    tune_parser.add_argument(
+        "--strategy",
+        type=str,
+        choices=["random", "near_default"],
+        default="random",
+        help="Weight search strategy (default: random)",
+    )
+    tune_parser.add_argument(
+        "--metric",
+        type=str,
+        choices=["accuracy", "accuracy_excl_draws", "best_dc"],
+        default="accuracy_excl_draws",
+        help="Metric to optimize (default: accuracy_excl_draws)",
+    )
+    tune_parser.add_argument(
+        "--min-prob",
+        type=float,
+        default=0.0,
+        metavar="PROB",
+        help="Minimum probability threshold (default: 0.0)",
+    )
+    tune_parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Less output",
     )
 
     # Main screener options (default command)
@@ -508,7 +600,10 @@ def run_backtest(args: argparse.Namespace) -> int:
             return 1
 
     try:
-        backtester = Backtester()
+        backtester = Backtester(
+            cache_dir=getattr(args, "cache_dir", None),
+            cache_only=getattr(args, "cache_only", False),
+        )
 
         results = backtester.run(
             competition_id=args.competition,
@@ -624,7 +719,10 @@ def run_backtest_all(args: argparse.Namespace) -> int:
     all_results = []
     league_summaries = []
 
-    backtester = Backtester()
+    backtester = Backtester(
+        cache_dir=getattr(args, "cache_dir", None),
+        cache_only=getattr(args, "cache_only", False),
+    )
 
     for comp_id, league_name, country in LEAGUES:
         print(f"\n{league_name}")
@@ -738,6 +836,60 @@ def run_backtest_all(args: argparse.Namespace) -> int:
         print()
         print(f"✅ PDF exported to: {pdf_path}")
 
+    return 0
+
+
+def run_tune(args: argparse.Namespace) -> int:
+    """Run hyperparameter tuning using cached data."""
+    print()
+    print("🎯 SlickBet - Hyperparameter Tuning")
+    print("=" * 50)
+    print(f"   Cache: {args.cache_dir}")
+    print(f"   Weeks: {args.weeks}")
+    print(f"   Trials: {args.trials}")
+    print(f"   Strategy: {args.strategy}")
+    print(f"   Metric: {args.metric}")
+    print("=" * 50)
+    print()
+
+    try:
+        best = tune(
+            cache_dir=args.cache_dir,
+            weeks=args.weeks,
+            trials=args.trials,
+            strategy=args.strategy,
+            min_probability=args.min_prob,
+            metric=args.metric,
+            verbose=not args.quiet,
+        )
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return 1
+
+    if best is None:
+        print("❌ No valid trials. Ensure cache is populated:")
+        print("   slickbet backtest-all --weeks 12 --cache-dir", args.cache_dir)
+        return 1
+
+    print()
+    print("=" * 50)
+    print("📊 BEST CONFIGURATION")
+    print("=" * 50)
+    print(f"   Accuracy: {best.accuracy:.1%}")
+    print(f"   Accuracy (excl. draws): {best.accuracy_excl_draws:.1%}")
+    print(f"   Best DC: {best.best_dc_accuracy:.1%}")
+    print(f"   Matches: {best.correct}/{best.total_matches}")
+    print()
+    print("   Weights (for BettingModel):")
+    print("   " + "-" * 40)
+    for k, v in sorted(best.weights.items()):
+        print(f"   {k}: {v:.4f}")
+    print()
+    print("   Copy into model.py WEIGHTS or BettingModel(__init__):")
+    print()
+    for line in format_best_weights(best.weights).split("\n"):
+        print("   " + line)
+    print()
     return 0
 
 
@@ -1052,6 +1204,9 @@ def main() -> int:
 
     if args.command == "backtest-all":
         return run_backtest_all(args)
+
+    if args.command == "tune":
+        return run_tune(args)
 
     if args.command == "debug":
         return run_debug(args)

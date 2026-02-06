@@ -144,6 +144,10 @@ cython_debug/
 *~
 .DS_Store
 
+# Backtest API cache (optional: remove to commit cached data)
+# If data/ was already committed, run: git rm -r --cached data/
+data/
+
 # Environment variables
 .env.local
 .env.*.local

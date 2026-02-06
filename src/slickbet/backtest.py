@@ -4,6 +4,7 @@ Backtesting module for evaluating prediction accuracy against historical data.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from slickbet.api import (
     HistoricalMatch,
@@ -257,6 +258,8 @@ class Backtester:
         self,
         client: LivescoreClient | None = None,
         model: BettingModel | None = None,
+        cache_dir: str | Path | None = None,
+        cache_only: bool = False,
     ):
         """
         Initialize the backtester.
@@ -264,11 +267,21 @@ class Backtester:
         Parameters
         ----------
         client : LivescoreClient or None, optional
-            Livescore API client
+            Livescore API client (if None, one is created with cache_dir/cache_only)
         model : BettingModel or None, optional
             Betting model to evaluate
+        cache_dir : str or Path or None, optional
+            If set, API responses are cached here for fast reruns and tuning.
+        cache_only : bool, optional
+            If True and cache_dir set, use only cache (no API calls). For offline runs.
         """
-        self.client = client or LivescoreClient()
+        if client is not None:
+            self.client = client
+        else:
+            self.client = LivescoreClient(
+                cache_dir=cache_dir,
+                cache_only=cache_only,
+            )
         self.model = model or BettingModel()
 
     def run(

@@ -152,19 +152,35 @@ class BettingModel:
 
     # Weights for different factors (should sum to 1.0)
     # Updated to include momentum metrics and match statistics from API
+    # WEIGHTS = {
+    #     "defense": 0.05,  # Clean sheets and defensive solidity
+    #     "form": 0.15,  # Recent form - reliable predictor
+    #     "goals": 0.11,  # Attack/defense strength differential
+    #     "h2h": 0.07,  # Head-to-head - less reliable due to sample size
+    #     "home": 0.09,  # Home advantage - consistent ~10% boost
+    #     "match_stats": 0.05,  # Match statistics averages (possession, attacks, shots)
+    #     "momentum": 0.06,  # First-half dominance and consistency
+    #     "odds": 0.17,  # Bookmaker odds - highly predictive when available
+    #     "position": 0.19,  # League standing - MOST predictive factor
+    #     "reliability": 0.04,  # Team reliability based on discipline (cards)
+    #     "venue_form": 0.06,  # Home/away specific performance
+    #     "xg": 0.05,  # Expected Goals (xG) - quality of chances created
+    # }
+
+    # Copy of the weights from hyperparameter tuning
     WEIGHTS = {
-        "form": 0.15,  # Recent form - reliable predictor
-        "position": 0.19,  # League standing - MOST predictive factor
-        "home": 0.09,  # Home advantage - consistent ~10% boost
-        "h2h": 0.07,  # Head-to-head - less reliable due to sample size
-        "odds": 0.17,  # Bookmaker odds - highly predictive when available
-        "goals": 0.11,  # Attack/defense strength differential
-        "venue_form": 0.06,  # Home/away specific performance
-        "defense": 0.05,  # Clean sheets and defensive solidity
-        "momentum": 0.06,  # First-half dominance and consistency
-        "match_stats": 0.05,  # Match statistics averages (possession, attacks, shots)
-        "xg": 0.05,  # Expected Goals (xG) - quality of chances created
-        "reliability": 0.04,  # Team reliability based on discipline (cards)
+        "defense": 0.1042,
+        "form": 0.0333,
+        "goals": 0.0855,
+        "h2h": 0.0605,
+        "home": 0.0945,
+        "match_stats": 0.0706,
+        "momentum": 0.1195,
+        "odds": 0.0549,
+        "position": 0.0474,
+        "reliability": 0.0874,
+        "venue_form": 0.2057,
+        "xg": 0.0365,
     }
 
     # Home advantage baseline (home teams win ~46% of matches historically)
@@ -178,18 +194,18 @@ class BettingModel:
 
     def __init__(
         self,
-        form_weight: float = 0.15,
-        position_weight: float = 0.19,
-        home_weight: float = 0.09,
-        h2h_weight: float = 0.07,
-        odds_weight: float = 0.17,
-        goals_weight: float = 0.11,
-        venue_form_weight: float = 0.06,
-        defense_weight: float = 0.05,
-        momentum_weight: float = 0.06,
-        match_stats_weight: float = 0.05,
-        xg_weight: float = 0.05,
-        reliability_weight: float = 0.04,
+        form_weight: float | None = None,
+        position_weight: float | None = None,
+        home_weight: float | None = None,
+        h2h_weight: float | None = None,
+        odds_weight: float | None = None,
+        goals_weight: float | None = None,
+        venue_form_weight: float | None = None,
+        defense_weight: float | None = None,
+        momentum_weight: float | None = None,
+        match_stats_weight: float | None = None,
+        xg_weight: float | None = None,
+        reliability_weight: float | None = None,
         min_confidence: float = 0.55,
     ):
         """
@@ -224,6 +240,30 @@ class BettingModel:
         min_confidence : float
             Minimum confidence threshold for recommendations
         """
+        w = self.WEIGHTS
+        form_weight = form_weight if form_weight is not None else w["form"]
+        position_weight = (
+            position_weight if position_weight is not None else w["position"]
+        )
+        home_weight = home_weight if home_weight is not None else w["home"]
+        h2h_weight = h2h_weight if h2h_weight is not None else w["h2h"]
+        odds_weight = odds_weight if odds_weight is not None else w["odds"]
+        goals_weight = goals_weight if goals_weight is not None else w["goals"]
+        venue_form_weight = (
+            venue_form_weight if venue_form_weight is not None else w["venue_form"]
+        )
+        defense_weight = defense_weight if defense_weight is not None else w["defense"]
+        momentum_weight = (
+            momentum_weight if momentum_weight is not None else w["momentum"]
+        )
+        match_stats_weight = (
+            match_stats_weight if match_stats_weight is not None else w["match_stats"]
+        )
+        xg_weight = xg_weight if xg_weight is not None else w["xg"]
+        reliability_weight = (
+            reliability_weight if reliability_weight is not None else w["reliability"]
+        )
+
         total = (
             form_weight
             + position_weight
@@ -337,7 +377,10 @@ class BettingModel:
             ):
                 xg_weight = 0.0
             else:
-                avg_matches = (match.home_performance.matches_with_stats + match.away_performance.matches_with_stats) / 2.0
+                avg_matches = (
+                    match.home_performance.matches_with_stats
+                    + match.away_performance.matches_with_stats
+                ) / 2.0
                 xg_weight = xg_weight * min(avg_matches / 5.0, 1.0)
 
         # Calculate weighted composite score
@@ -976,9 +1019,7 @@ class BettingModel:
             return 0.0, reasons
 
         # Normalize xG diff by typical range (e.g. 2.0 per game)
-        xg_diff = (
-            home_perf.avg_expected_goals - away_perf.avg_expected_goals
-        ) / 2.0
+        xg_diff = (home_perf.avg_expected_goals - away_perf.avg_expected_goals) / 2.0
         score = max(-1.0, min(1.0, xg_diff))
 
         reasons.append(
