@@ -4,7 +4,7 @@ Betting screener for finding and ranking soccer betting opportunities.
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from slickbet.api import LivescoreAPIError, LivescoreClient, Match
@@ -498,7 +498,7 @@ class BettingScreener:
             predictions=predictions,
             total_matches_scanned=total_scanned,
             matches_filtered=len(filtered_matches),
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
         )
 
     def _apply_filters(self, matches: list[Match]) -> list[Match]:

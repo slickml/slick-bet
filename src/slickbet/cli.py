@@ -968,12 +968,12 @@ def run_screener(args: argparse.Namespace) -> int:
         if args.date:
             # Specific date provided
             try:
-                date = datetime.strptime(args.date, "%Y-%m-%d")
+                target_date = datetime.strptime(args.date, "%Y-%m-%d")
             except ValueError:
                 print(f"❌ Invalid date format: {args.date}")
                 print("   Use YYYY-MM-DD format (e.g., 2025-02-15)")
                 return 1
-            result = screener.screen_date(date)
+            result = screener.screen_date(target_date)
         elif args.days == 0:
             # Screen matches for today (calendar day)
             result = screener.screen_date(datetime.combine(date.today(), time.min))
