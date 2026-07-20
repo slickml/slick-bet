@@ -1,5 +1,8 @@
 """
 Command-line interface for the SlickBet betting screener.
+
+Entry points for screening fixtures, listing competitions, backtesting,
+hyperparameter tuning, PDF/JSON export, and API debug. Invoked as ``slickbet``.
 """
 
 import argparse
@@ -7,26 +10,35 @@ import sys
 from datetime import date, datetime, time
 
 from slickbet.api import LivescoreAPIError, LivescoreClient
-from slickbet.backtest import Backtester, format_backtest_report
-from slickbet.tune import format_best_weights, tune
+from slickbet.backtest import Backtester, BacktestResults, format_backtest_report
 from slickbet.pdf_export import (
     export_backtest_all_to_pdf,
     export_backtest_to_pdf,
     export_screener_to_pdf,
 )
 from slickbet.screener import (
+    BetPrediction,
     BettingScreener,
     ScreenerConfig,
+    ScreenerResult,
     format_prediction,
     format_summary,
 )
+from slickbet.tune import format_best_weights, tune
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Create the argument parser for the CLI."""
+    """
+    Create the argument parser for the CLI.
+
+    Returns
+    -------
+    argparse.ArgumentParser
+        Configured parser with screener, backtest, tune, and debug subcommands.
+    """
     parser = argparse.ArgumentParser(
         prog="slickbet",
-        description="🎰 SlickBet - Soccer Betting Screener",
+        description="⚽ SlickBet - Soccer Betting Screener",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -324,7 +336,8 @@ First populate the cache:
         help="Minimum probability threshold (default: 0.0)",
     )
     tune_parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_true",
         help="Less output",
     )
@@ -483,6 +496,11 @@ def run_competitions(args: argparse.Namespace) -> int:
     """
     List available competitions.
 
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (``country``, ``search``).
+
     Returns
     -------
     int
@@ -571,13 +589,18 @@ def run_backtest(args: argparse.Namespace) -> int:
     """
     Run the backtest with the given arguments.
 
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (competition, weeks, dates, output flags).
+
     Returns
     -------
     int
         Exit code (0 for success, 1 for error)
     """
     print()
-    print("🎰 SlickBet - Model Backtesting")
+    print("⚽ SlickBet - Model Backtesting")
     print("=" * 40)
     print()
 
@@ -641,6 +664,11 @@ def run_backtest(args: argparse.Namespace) -> int:
 def run_backtest_all(args: argparse.Namespace) -> int:
     """
     Run backtest on all major leagues and show aggregated results.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (weeks, league filters, cache, pdf).
 
     Returns
     -------
@@ -814,7 +842,11 @@ def run_backtest_all(args: argparse.Namespace) -> int:
     print(f"{'League':<25} {'Matches':>8} {'Accuracy':>10} {'Excl.Draws':>12} {'Best DC':>10}")
     print("-" * 70)
 
-    for league in sorted(league_summaries, key=lambda x: x["accuracy_excl_draws"], reverse=True):
+    for league in sorted(
+        league_summaries,
+        key=lambda x: float(x["accuracy_excl_draws"]),  # type: ignore[arg-type]
+        reverse=True,
+    ):
         print(
             f"{league['name']:<25} "
             f"{league['total']:>8} "
@@ -841,7 +873,19 @@ def run_backtest_all(args: argparse.Namespace) -> int:
 
 
 def run_tune(args: argparse.Namespace) -> int:
-    """Run hyperparameter tuning using cached data."""
+    """
+    Run hyperparameter tuning using cached data.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (cache_dir, weeks, trials, strategy, metric).
+
+    Returns
+    -------
+    int
+        Exit code (0 for success, 1 for error).
+    """
     print()
     print("🎯 SlickBet - Hyperparameter Tuning")
     print("=" * 50)
@@ -894,8 +938,15 @@ def run_tune(args: argparse.Namespace) -> int:
     return 0
 
 
-def output_backtest_json(results) -> None:
-    """Output backtest results as JSON."""
+def output_backtest_json(results: BacktestResults) -> None:
+    """
+    Output backtest results as JSON to stdout.
+
+    Parameters
+    ----------
+    results : BacktestResults
+        Aggregated backtest results to serialize.
+    """
     import json
 
     output = {
@@ -939,6 +990,11 @@ def output_backtest_json(results) -> None:
 def run_screener(args: argparse.Namespace) -> int:
     """
     Run the betting screener with the given arguments.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (date/days, filters, output flags).
 
     Returns
     -------
@@ -990,7 +1046,7 @@ def run_screener(args: argparse.Namespace) -> int:
             predictions = result.get_away_wins()
 
         # Helper to get best double chance probability
-        def get_best_dc_prob(p):
+        def get_best_dc_prob(p: BetPrediction) -> float:
             if p.double_chance:
                 _, prob = p.double_chance.best_double_chance
                 return prob
@@ -1018,7 +1074,7 @@ def run_screener(args: argparse.Namespace) -> int:
                 print("😕 No betting opportunities found matching your criteria.")
                 print("   Try adjusting --min-prob or --min-conf thresholds.")
             else:
-                print(f"🎰 TOP {min(args.top, len(predictions))} BETTING OPPORTUNITIES")
+                print(f"⚽ TOP {min(args.top, len(predictions))} BETTING OPPORTUNITIES")
                 print()
 
                 for i, pred in enumerate(predictions, 1):
@@ -1036,8 +1092,17 @@ def run_screener(args: argparse.Namespace) -> int:
         return 1
 
 
-def output_json(predictions: list, result) -> None:
-    """Output results as JSON."""
+def output_json(predictions: list[BetPrediction], result: ScreenerResult) -> None:
+    """
+    Output screener results as JSON to stdout.
+
+    Parameters
+    ----------
+    predictions : list
+        Predictions to include (already filtered/sorted).
+    result : ScreenerResult
+        Full screener result for summary fields.
+    """
     import json
 
     output = {
@@ -1085,6 +1150,11 @@ def output_json(predictions: list, result) -> None:
 def run_debug(args: argparse.Namespace) -> int:
     """
     Debug API responses to understand data structure.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (optional ``date``).
 
     Returns
     -------
@@ -1142,9 +1212,6 @@ def run_debug(args: argparse.Namespace) -> int:
                         print(
                             f"Found 'match': {len(fixtures) if isinstance(fixtures, list) else type(fixtures)}"
                         )
-                    elif isinstance(data_section, list):
-                        fixtures = data_section
-                        print(f"data is a list: {len(fixtures)} items")
 
                     # Show sample fixture structure
                     if fixtures and isinstance(fixtures, list) and len(fixtures) > 0:
@@ -1188,7 +1255,14 @@ def run_debug(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    """Main entry point for the CLI."""
+    """
+    Main entry point for the CLI.
+
+    Returns
+    -------
+    int
+        Process exit code from the selected subcommand or screener.
+    """
     parser = create_parser()
     args = parser.parse_args()
 
@@ -1210,7 +1284,7 @@ def main() -> int:
 
     # Default: run screener
     print()
-    print("🎰 SlickBet - Soccer Betting Screener")
+    print("⚽ SlickBet - Soccer Betting Screener")
     print("=" * 40)
     print()
 

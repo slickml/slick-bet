@@ -1,9 +1,8 @@
 """
-SlickBet - Soccer Betting Screener
+SlickBet - Soccer Betting Screener.
 
-A betting screener for soccer games using Livescore API.
-Fetches upcoming matches, analyzes statistics, and ranks
-betting opportunities by win probability.
+Public package API for screening upcoming soccer matches, ranking betting
+opportunities, and backtesting the prediction model against historical data.
 
 Examples
 --------
@@ -15,7 +14,7 @@ Examples
 """
 
 __version__ = "0.1.0"
-__author__ = "SlickBet Team"
+__author__ = "Amirhessam Tahmassebi"
 
 from slickbet.api import (
     HistoricalMatch,

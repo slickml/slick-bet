@@ -4,13 +4,14 @@ File-based cache for Livescore API responses.
 Enables fast backtesting and hyperparameter optimization by storing
 API responses locally and reusing them instead of hitting the API.
 
-Usage:
-    # First run: fetch and cache (e.g. 12 weeks backtest)
-    client = LivescoreClient(cache_dir="data/api_cache")
-    # ... run backtest ...
+Examples
+--------
+>>> # First run: fetch and cache (e.g. 12 weeks backtest)
+>>> client = LivescoreClient(cache_dir="data/api_cache")
+>>> # ... run backtest ...
 
-    # Later runs: use cache only (no API calls)
-    client = LivescoreClient(cache_dir="data/api_cache", cache_only=True)
+>>> # Later runs: use cache only (no API calls)
+>>> client = LivescoreClient(cache_dir="data/api_cache", cache_only=True)
 """
 
 import hashlib
@@ -21,7 +22,19 @@ from typing import Any
 
 
 def _serialize_params(params: dict[str, Any] | None) -> str:
-    """Convert request params to a stable JSON string for cache keys."""
+    """
+    Convert request params to a stable JSON string for cache keys.
+
+    Parameters
+    ----------
+    params : dict or None
+        Request query parameters (datetimes become YYYY-MM-DD).
+
+    Returns
+    -------
+    str
+        Sorted JSON string suitable for hashing.
+    """
     if not params:
         return "{}"
     out: dict[str, Any] = {}
@@ -34,7 +47,21 @@ def _serialize_params(params: dict[str, Any] | None) -> str:
 
 
 def cache_key(endpoint: str, params: dict[str, Any] | None) -> str:
-    """Produce a short, filesystem-safe cache key from endpoint and params."""
+    """
+    Produce a short, filesystem-safe cache key from endpoint and params.
+
+    Parameters
+    ----------
+    endpoint : str
+        API endpoint path.
+    params : dict or None
+        Request query parameters.
+
+    Returns
+    -------
+    str
+        32-character hex digest.
+    """
     raw = f"{endpoint}|{_serialize_params(params)}"
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
@@ -60,6 +87,13 @@ class ApiCache:
         """
         Load cached response if present.
 
+        Parameters
+        ----------
+        endpoint : str
+            API endpoint path.
+        params : dict or None
+            Request query parameters.
+
         Returns
         -------
         dict or None
@@ -71,14 +105,23 @@ class ApiCache:
             return None
         try:
             with open(path, encoding="utf-8") as f:
-                return json.load(f)
+                return dict(json.load(f))
         except (json.JSONDecodeError, OSError):
             return None
 
-    def set(
-        self, endpoint: str, params: dict[str, Any] | None, data: dict
-    ) -> None:
-        """Store response in cache."""
+    def set(self, endpoint: str, params: dict[str, Any] | None, data: dict) -> None:
+        """
+        Store response in cache.
+
+        Parameters
+        ----------
+        endpoint : str
+            API endpoint path.
+        params : dict or None
+            Request query parameters.
+        data : dict
+            JSON response body to store.
+        """
         key = cache_key(endpoint, params)
         path = self.root / f"{key}.json"
         try:
@@ -88,7 +131,13 @@ class ApiCache:
             pass
 
     def clear(self) -> None:
-        """Remove all cached files in the cache directory."""
+        """
+        Remove all cached files in the cache directory.
+
+        Returns
+        -------
+        None
+        """
         for f in self.root.glob("*.json"):
             try:
                 f.unlink()

@@ -1,5 +1,9 @@
 """
 Betting screener for finding and ranking soccer betting opportunities.
+
+Fetches upcoming fixtures via ``LivescoreClient``, filters by league/country,
+enriches matches with stats, runs ``BettingModel``, and ranks predictions.
+Also provides display helpers ``format_prediction`` and ``format_summary``.
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -162,7 +166,34 @@ CUP_NAME_PATTERNS = [
 
 @dataclass
 class ScreenerConfig:
-    """Configuration for the betting screener."""
+    """
+    Configuration for the betting screener.
+
+    Attributes
+    ----------
+    min_probability : float
+        Minimum win probability for a bet to be kept (default 0.55).
+    min_confidence : float
+        Minimum model confidence threshold (default 0.10).
+    fetch_detailed_stats : bool
+        If True, enrich matches with form/standings/H2H/performance.
+    max_workers : int
+        Concurrent API workers for enrichment.
+    countries : list[str]
+        Country name filters (empty = all).
+    competitions : list[str]
+        Competition name filters (empty = all).
+    competition_ids : list[str]
+        Competition ID filters (empty = all).
+    major_leagues_only : bool
+        Restrict to top-5 European leagues.
+    asia_leagues_only : bool
+        Restrict to configured Asia leagues.
+    americas_leagues_only : bool
+        Restrict to configured Americas leagues.
+    all_leagues : bool
+        Include major + minor European + Asia + Americas.
+    """
 
     # Minimum probability threshold for a bet to be considered
     min_probability: float = 0.55
@@ -177,13 +208,13 @@ class ScreenerConfig:
     max_workers: int = 5
 
     # Filter by specific countries (empty = all countries)
-    countries: list[str] = None
+    countries: list[str] | None = None
 
     # Filter by specific competitions by name (empty = all competitions)
-    competitions: list[str] = None
+    competitions: list[str] | None = None
 
     # Filter by specific competition IDs (empty = all)
-    competition_ids: list[str] = None
+    competition_ids: list[str] | None = None
 
     # Only show major European leagues (Bundesliga, PL, La Liga, Serie A, Ligue 1)
     major_leagues_only: bool = False
@@ -197,7 +228,8 @@ class ScreenerConfig:
     # Show all supported leagues (Major European + Minor European + Asia + Americas)
     all_leagues: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Normalize None list fields to empty lists."""
         if self.countries is None:
             self.countries = []
         if self.competitions is None:
@@ -207,7 +239,19 @@ class ScreenerConfig:
 
 
 def get_best_double_chance_prob(prediction: BetPrediction) -> float:
-    """Get the best double chance probability from a prediction."""
+    """
+    Get the best double chance probability from a prediction.
+
+    Parameters
+    ----------
+    prediction : BetPrediction
+        Model prediction (may include ``double_chance``).
+
+    Returns
+    -------
+    float
+        Best double-chance probability, or win probability as fallback.
+    """
     if prediction.double_chance:
         _, prob = prediction.double_chance.best_double_chance
         return prob
@@ -234,7 +278,19 @@ class ScreenerResult:
         return sorted(self.predictions, key=lambda p: p.probability, reverse=True)
 
     def get_top_k(self, k: int) -> list[BetPrediction]:
-        """Get top K betting opportunities by double chance."""
+        """
+        Get top K betting opportunities by double chance.
+
+        Parameters
+        ----------
+        k : int
+            Number of predictions to return.
+
+        Returns
+        -------
+        list[BetPrediction]
+            Top ``k`` predictions sorted by best double-chance probability.
+        """
         return self.top_bets[:k]
 
     def get_home_wins(self) -> list[BetPrediction]:
@@ -286,6 +342,11 @@ class BettingScreener:
 
         Uses calendar-day logic so results are invariant of run time:
         e.g. running at 8am or 11pm both get the same "tomorrow" fixtures.
+
+        Returns
+        -------
+        ScreenerResult
+            Ranked predictions for tomorrow's fixtures.
         """
         tomorrow_date = date.today() + timedelta(days=1)
         target = datetime.combine(tomorrow_date, time.min)
@@ -396,9 +457,7 @@ class BettingScreener:
                     + list(AMERICAS_LEAGUE_IDS)
                 )
             if competition_ids:
-                return self.client.get_fixtures_list(
-                    date=dt, competition_ids=competition_ids
-                )
+                return self.client.get_fixtures_list(date=dt, competition_ids=competition_ids)
             return self.client.get_fixtures_by_date(dt)
 
         matches_today = fetch(date_dt)
@@ -410,11 +469,7 @@ class BettingScreener:
                 continue
             seen_ids.add(m.id)
             merged.append(m)
-        return [
-            m
-            for m in merged
-            if to_central_time(m.kickoff_time).date() == target_date
-        ]
+        return [m for m in merged if to_central_time(m.kickoff_time).date() == target_date]
 
     def _screen_matches(self, matches: list[Match]) -> ScreenerResult:
         """
@@ -460,11 +515,17 @@ class BettingScreener:
                 else:
                     if prediction.probability < self.config.min_probability:
                         dropped_low_prob.append(
-                            (prediction, f"prob={prediction.probability:.1%} < {self.config.min_probability:.2f}")
+                            (
+                                prediction,
+                                f"prob={prediction.probability:.1%} < {self.config.min_probability:.2f}",
+                            )
                         )
                     if prediction.confidence < self.config.min_confidence:
                         dropped_low_conf.append(
-                            (prediction, f"conf={prediction.confidence:.2f} < {self.config.min_confidence:.2f}")
+                            (
+                                prediction,
+                                f"conf={prediction.confidence:.2f} < {self.config.min_confidence:.2f}",
+                            )
                         )
 
             except Exception as e:
@@ -487,7 +548,9 @@ class BettingScreener:
                 dropped_matches.setdefault(key, (pred, []))[1].append(reason)
             n_dropped = len(dropped_matches)
             print(f"   📉 Dropped {n_dropped} match(es) below --min-prob/--min-conf:")
-            for key, (pred, reasons) in sorted(dropped_matches.items(), key=lambda x: -get_best_double_chance_prob(x[1][0]))[:15]:
+            for key, (pred, reasons) in sorted(
+                dropped_matches.items(), key=lambda x: -get_best_double_chance_prob(x[1][0])
+            )[:15]:
                 prob_str = f"prob={pred.probability:.1%}"
                 conf_str = f"conf={pred.confidence:.2f}"
                 print(f"      • {key}: {prob_str}, {conf_str} ({'; '.join(reasons)})")
@@ -502,7 +565,19 @@ class BettingScreener:
         )
 
     def _apply_filters(self, matches: list[Match]) -> list[Match]:
-        """Apply configured filters to matches."""
+        """
+        Apply configured league/country/competition filters to matches.
+
+        Parameters
+        ----------
+        matches : list[Match]
+            Matches to filter.
+
+        Returns
+        -------
+        list[Match]
+            Filtered matches.
+        """
         filtered = matches
 
         # Filter by major leagues only (highest priority)
@@ -586,6 +661,16 @@ class BettingScreener:
         Check if a match is from one of the major European leagues.
 
         Uses competition_id for reliable identification, avoiding name-based heuristics.
+
+        Parameters
+        ----------
+        match : Match
+            Match to classify.
+
+        Returns
+        -------
+        bool
+            True if major European league (non-cup).
         """
         # Exclude cup competitions
         if self._is_cup_competition(match):
@@ -595,7 +680,19 @@ class BettingScreener:
         return match.competition_id in MAJOR_LEAGUE_IDS
 
     def _is_cup_competition(self, match: Match) -> bool:
-        """Check if a match is a cup competition (not a league match)."""
+        """
+        Check if a match is a cup competition (not a league match).
+
+        Parameters
+        ----------
+        match : Match
+            Match to classify.
+
+        Returns
+        -------
+        bool
+            True if cup competition ID or name pattern matches.
+        """
         # Check by competition ID
         if match.competition_id in CUP_COMPETITION_IDS:
             return True
@@ -609,9 +706,19 @@ class BettingScreener:
 
     def _is_minor_league(self, match: Match) -> bool:
         """
-        Check if a match is from one of the minor European leagues (Belgium, Portugal, Turkey, Netherlands).
+        Check if a match is from one of the minor European leagues.
 
-        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        Uses competition_id for reliable identification.
+
+        Parameters
+        ----------
+        match : Match
+            Match to classify.
+
+        Returns
+        -------
+        bool
+            True if configured minor European league (non-cup).
         """
         # Exclude cup competitions
         if self._is_cup_competition(match):
@@ -622,9 +729,19 @@ class BettingScreener:
 
     def _is_americas_league(self, match: Match) -> bool:
         """
-        Check if a match is from one of the Americas leagues (Argentina, Brazil, Mexico).
+        Check if a match is from one of the Americas leagues.
 
-        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        Uses competition_id for reliable identification.
+
+        Parameters
+        ----------
+        match : Match
+            Match to classify.
+
+        Returns
+        -------
+        bool
+            True if Argentina/Brazil/Mexico league (non-cup).
         """
         # Exclude cup competitions
         if self._is_cup_competition(match):
@@ -635,9 +752,19 @@ class BettingScreener:
 
     def _is_asia_league(self, match: Match) -> bool:
         """
-        Check if a match is from one of the Asia leagues (Saudi, Australia, Japan).
+        Check if a match is from one of the Asia leagues.
 
-        Uses competition_id for reliable identification, avoiding name-based heuristics.
+        Uses competition_id for reliable identification.
+
+        Parameters
+        ----------
+        match : Match
+            Match to classify.
+
+        Returns
+        -------
+        bool
+            True if Saudi/Australia/Japan league (non-cup).
         """
         # Exclude cup competitions
         if self._is_cup_competition(match):
@@ -649,6 +776,16 @@ class BettingScreener:
     def _enrich_matches(self, matches: list[Match]) -> list[Match]:
         """
         Enrich matches with additional statistics using parallel requests.
+
+        Parameters
+        ----------
+        matches : list[Match]
+            Matches to enrich.
+
+        Returns
+        -------
+        list[Match]
+            Matches with form, standings, H2H, and performance when available.
         """
         enriched = []
 

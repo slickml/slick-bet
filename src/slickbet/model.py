@@ -1,16 +1,11 @@
 """
 Betting model for calculating win/loss probabilities.
 
-This module implements a scoring system based on multiple factors:
-- Recent form (last 5 matches)
-- League position differential
-- Home advantage
-- Head-to-head record
-- Bookmaker odds
-- Goal statistics (attack/defense strength)
-- Home/Away specific performance
-- Clean sheet rate
-- Match statistics averages (possession, attacks, shots on target)
+Implements a weighted scoring system over form, league position, home
+advantage, H2H, bookmaker odds, goals, venue form, defense, momentum,
+match statistics, expected goals (xG), and discipline/reliability.
+Produces ``BetPrediction`` objects including draw risk and double-chance
+probabilities.
 """
 
 from dataclasses import dataclass
@@ -47,7 +42,14 @@ class DoubleChancePrediction:
 
     @property
     def best_double_chance(self) -> tuple[str, float]:
-        """Return the best double chance bet and its probability."""
+        """
+        Return the best double chance bet and its probability.
+
+        Returns
+        -------
+        tuple[str, float]
+            ``(label, probability)`` for the highest double-chance option.
+        """
         options = {
             "1X (Home or Draw)": self.home_or_draw_prob,
             "X2 (Away or Draw)": self.away_or_draw_prob,
@@ -80,9 +82,7 @@ class BetPrediction:
     venue_form_score: float = 0.0  # Home/away specific performance
     defense_score: float = 0.0  # Clean sheet and goals conceded differential
     momentum_score: float = 0.0  # First-half dominance and consistency
-    match_stats_score: float = (
-        0.0  # Match statistics averages (possession, attacks, shots)
-    )
+    match_stats_score: float = 0.0  # Match statistics averages (possession, attacks, shots)
     xg_score: float = 0.0  # Expected Goals (xG) differential
     reliability_score: float = 0.0  # Team reliability based on discipline (cards)
 
@@ -99,7 +99,13 @@ class BetPrediction:
     def expected_value(self) -> float:
         """
         Calculate expected value assuming fair 2.0 odds.
+
         EV = (probability * potential_win) - (1 - probability) * stake
+
+        Returns
+        -------
+        float
+            Expected value per unit stake at even money.
         """
         # Assuming stake of 1 unit and odds of 2.0 (fair odds for 50%)
         return (self.probability * 1.0) - ((1 - self.probability) * 1.0)
@@ -242,20 +248,14 @@ class BettingModel:
         """
         w = self.WEIGHTS
         form_weight = form_weight if form_weight is not None else w["form"]
-        position_weight = (
-            position_weight if position_weight is not None else w["position"]
-        )
+        position_weight = position_weight if position_weight is not None else w["position"]
         home_weight = home_weight if home_weight is not None else w["home"]
         h2h_weight = h2h_weight if h2h_weight is not None else w["h2h"]
         odds_weight = odds_weight if odds_weight is not None else w["odds"]
         goals_weight = goals_weight if goals_weight is not None else w["goals"]
-        venue_form_weight = (
-            venue_form_weight if venue_form_weight is not None else w["venue_form"]
-        )
+        venue_form_weight = venue_form_weight if venue_form_weight is not None else w["venue_form"]
         defense_weight = defense_weight if defense_weight is not None else w["defense"]
-        momentum_weight = (
-            momentum_weight if momentum_weight is not None else w["momentum"]
-        )
+        momentum_weight = momentum_weight if momentum_weight is not None else w["momentum"]
         match_stats_weight = (
             match_stats_weight if match_stats_weight is not None else w["match_stats"]
         )
@@ -342,17 +342,13 @@ class BettingModel:
         momentum_score, momentum_reasons = self._calculate_momentum_score(match)
         reasoning.extend(momentum_reasons)
 
-        match_stats_score, match_stats_reasons = self._calculate_match_stats_score(
-            match
-        )
+        match_stats_score, match_stats_reasons = self._calculate_match_stats_score(match)
         reasoning.extend(match_stats_reasons)
 
         xg_score, xg_reasons = self._calculate_xg_score(match)
         reasoning.extend(xg_reasons)
 
-        reliability_score, reliability_reasons = self._calculate_reliability_score(
-            match
-        )
+        reliability_score, reliability_reasons = self._calculate_reliability_score(match)
         reasoning.extend(reliability_reasons)
 
         # Adaptive weighting for match statistics based on data quality
@@ -408,9 +404,7 @@ class BettingModel:
         # Calculate draw risk based on how close the composite score is to 0
         # Matches with evenly-matched teams are more likely to draw
         # Now also considers bookmaker draw odds and PPG proximity
-        draw_risk = self._calculate_draw_risk(
-            composite_score, form_score, position_score, match
-        )
+        draw_risk = self._calculate_draw_risk(composite_score, form_score, position_score, match)
         if draw_risk > self.DRAW_RISK_THRESHOLD:
             reasoning.append(f"⚠️ High draw risk detected ({draw_risk:.1%})")
 
@@ -469,6 +463,11 @@ class BettingModel:
         """
         Calculate score based on recent form.
 
+        Parameters
+        ----------
+        match : Match
+            Match with ``home_form`` / ``away_form`` strings.
+
         Returns
         -------
         tuple[float, list[str]]
@@ -513,6 +512,11 @@ class BettingModel:
         """
         Calculate score based on league position.
 
+        Parameters
+        ----------
+        match : Match
+            Match with ``home_position`` / ``away_position``.
+
         Returns
         -------
         tuple[float, list[str]]
@@ -556,6 +560,11 @@ class BettingModel:
         """
         Calculate score based on home advantage.
 
+        Parameters
+        ----------
+        match : Match
+            Match being scored (unused beyond signature consistency).
+
         Returns
         -------
         tuple[float, list[str]]
@@ -567,15 +576,18 @@ class BettingModel:
 
         score = self.HOME_ADVANTAGE * 2  # Normalize to contribute positively
 
-        reasons = [
-            f"Home advantage factor applied (+{self.HOME_ADVANTAGE:.0%} to home team)"
-        ]
+        reasons = [f"Home advantage factor applied (+{self.HOME_ADVANTAGE:.0%} to home team)"]
 
         return score, reasons
 
     def _calculate_h2h_score(self, match: Match) -> tuple[float, list[str]]:
         """
         Calculate score based on head-to-head record.
+
+        Parameters
+        ----------
+        match : Match
+            Match with ``head_to_head`` dict when available.
 
         Returns
         -------
@@ -622,6 +634,11 @@ class BettingModel:
 
         Bookmaker odds are highly predictive as they incorporate vast amounts
         of information and are adjusted based on betting patterns.
+
+        Parameters
+        ----------
+        match : Match
+            Match with ``pre_odds`` when available.
 
         Returns
         -------
@@ -678,6 +695,11 @@ class BettingModel:
         Teams that score more and concede less are stronger.
         This captures attacking threat and defensive stability.
 
+        Parameters
+        ----------
+        match : Match
+            Match with ``home_performance`` / ``away_performance``.
+
         Returns
         -------
         tuple[float, list[str]]
@@ -716,9 +738,7 @@ class BettingModel:
         score = max(-1.0, min(1.0, score))
 
         reasons.append(f"⚽ Goals/game: Home {home_attack:.2f}, Away {away_attack:.2f}")
-        reasons.append(
-            f"🛡️ Conceded/game: Home {home_defense:.2f}, Away {away_defense:.2f}"
-        )
+        reasons.append(f"🛡️ Conceded/game: Home {home_defense:.2f}, Away {away_defense:.2f}")
 
         if score > 0.15:
             reasons.append("→ Home team has stronger goal stats")
@@ -733,6 +753,11 @@ class BettingModel:
 
         Some teams perform very differently at home vs away.
         This captures venue-specific form.
+
+        Parameters
+        ----------
+        match : Match
+            Match with venue-specific rates on performance stats.
 
         Returns
         -------
@@ -773,6 +798,11 @@ class BettingModel:
 
         Teams that keep clean sheets regularly are defensively strong.
 
+        Parameters
+        ----------
+        match : Match
+            Match with clean-sheet rates on performance stats.
+
         Returns
         -------
         tuple[float, list[str]]
@@ -794,9 +824,7 @@ class BettingModel:
         score = home_cs_rate - away_cs_rate
 
         if home_perf.matches_analyzed > 0 and away_perf.matches_analyzed > 0:
-            reasons.append(
-                f"🧤 Clean sheet rate: Home {home_cs_rate:.0%}, Away {away_cs_rate:.0%}"
-            )
+            reasons.append(f"🧤 Clean sheet rate: Home {home_cs_rate:.0%}, Away {away_cs_rate:.0%}")
 
         if home_cs_rate > 0.4:
             reasons.append("→ Home team defensively solid")
@@ -811,6 +839,11 @@ class BettingModel:
 
         Teams that consistently lead at half-time and don't collapse are more reliable.
         Based on: https://live-score-api.com/documentation/reference/27/getting-teams-last-matches
+
+        Parameters
+        ----------
+        match : Match
+            Match with HT/win/comeback rates on performance stats.
 
         Returns
         -------
@@ -852,14 +885,10 @@ class BettingModel:
 
         # Add reasoning if significant
         if home_perf.ht_wins > 0 or away_perf.ht_wins > 0:
-            reasons.append(
-                f"⏱️ HT lead rate: Home {home_ht_lead:.0%}, Away {away_ht_lead:.0%}"
-            )
+            reasons.append(f"⏱️ HT lead rate: Home {home_ht_lead:.0%}, Away {away_ht_lead:.0%}")
 
         if home_perf.wins > 0 or away_perf.wins > 0:
-            reasons.append(
-                f"📈 Win rate: Home {home_win_rate:.0%}, Away {away_win_rate:.0%}"
-            )
+            reasons.append(f"📈 Win rate: Home {home_win_rate:.0%}, Away {away_win_rate:.0%}")
 
         if home_momentum > away_momentum + 0.1:
             reasons.append("→ Home team has stronger momentum")
@@ -877,6 +906,11 @@ class BettingModel:
 
         Based on historical match statistics from:
         https://live-score-api.com/documentation/reference/23/match-statistics
+
+        Parameters
+        ----------
+        match : Match
+            Match with aggregated match-stat averages on performance.
 
         Returns
         -------
@@ -922,9 +956,7 @@ class BettingModel:
         ) / 30.0
 
         # Shots on target: typically 2-8 per game, normalize by 5
-        shots_on_target_diff = (
-            home_perf.avg_shots_on_target - away_perf.avg_shots_on_target
-        ) / 5.0
+        shots_on_target_diff = (home_perf.avg_shots_on_target - away_perf.avg_shots_on_target) / 5.0
 
         # Goal Conversion Rate: goals per shot on target
         # Measures efficiency in turning opportunities into actual goals
@@ -940,9 +972,7 @@ class BettingModel:
         shot_accuracy_diff = 0.0
         if home_perf.shot_accuracy > 0 and away_perf.shot_accuracy > 0:
             # Normalize by typical shot accuracy (0.4 = 40%)
-            shot_accuracy_diff = (
-                home_perf.shot_accuracy - away_perf.shot_accuracy
-            ) / 0.4
+            shot_accuracy_diff = (home_perf.shot_accuracy - away_perf.shot_accuracy) / 0.4
 
         # Weighted combination (xG/xGD moved to separate xg factor)
         # Weights scaled so remaining factors sum to 1.0
@@ -961,10 +991,7 @@ class BettingModel:
 
         # Add reasoning (xG/xGD reasoning in _calculate_xg_score)
         # Expected Goals Against (xGA) - defensive metric
-        if (
-            home_perf.avg_expected_goals_against > 0
-            and away_perf.avg_expected_goals_against > 0
-        ):
+        if home_perf.avg_expected_goals_against > 0 and away_perf.avg_expected_goals_against > 0:
             reasons.append(
                 f"🛡️ xGA (Expected Goals Against): Home {home_perf.avg_expected_goals_against:.2f} vs Away {away_perf.avg_expected_goals_against:.2f}"
             )
@@ -1002,13 +1029,18 @@ class BettingModel:
         xG measures quality of chances created; higher xG indicates better
         chance creation. Used as a standalone factor with its own weight.
 
+        Parameters
+        ----------
+        match : Match
+            Match with average xG on performance stats.
+
         Returns
         -------
         tuple[float, list[str]]
             Tuple of (score, reasoning_list).
             Score range: -1.0 to 1.0 (positive favors home).
         """
-        reasons = []
+        reasons: list[str] = []
         if not match.home_performance or not match.away_performance:
             return 0.0, reasons
 
@@ -1052,6 +1084,11 @@ class BettingModel:
 
         Lower cards = higher reliability = more predictable outcomes.
 
+        Parameters
+        ----------
+        match : Match
+            Match with reliability/card stats on performance.
+
         Returns
         -------
         tuple[float, list[str]]
@@ -1079,9 +1116,7 @@ class BettingModel:
         score = max(-1.0, min(1.0, score))
 
         # Add reasoning
-        reasons.append(
-            f"🎯 Reliability: Home {home_reliability:.2f}, Away {away_reliability:.2f}"
-        )
+        reasons.append(f"🎯 Reliability: Home {home_reliability:.2f}, Away {away_reliability:.2f}")
 
         if home_perf.matches_with_stats > 0:
             reasons.append(
@@ -1159,9 +1194,7 @@ class BettingModel:
                 implied_draw_prob = 1.0 / draw_odds
                 # Scale: if implied > 30%, increase draw factor
                 if implied_draw_prob > 0.30:
-                    odds_draw_factor = (
-                        implied_draw_prob - 0.26
-                    ) * 2  # Boost for high draw odds
+                    odds_draw_factor = (implied_draw_prob - 0.26) * 2  # Boost for high draw odds
                 elif implied_draw_prob < 0.22:
                     odds_draw_factor = -0.1  # Reduce for low draw odds
 
@@ -1257,6 +1290,6 @@ class BettingModel:
         list[BetPrediction]
             Filtered list of predictions
         """
-        threshold = min_confidence or self.min_confidence
+        threshold = self.min_confidence if min_confidence is None else min_confidence
 
         return [p for p in predictions if p.confidence >= threshold]

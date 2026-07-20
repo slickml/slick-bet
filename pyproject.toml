@@ -4,18 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "slickbet"
-version = "0.1.0"
-description = "Soccer betting screener using Livescore API"
+version = "0.3.0"
+description = "SlickML soccer betting screener: 12-factor model, backtesting, and PDF reports via Livescore API"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.10"
-authors = [{ name = "SlickBet Team" }]
+requires-python = ">=3.10,<3.14"
+authors = [
+    { name = "Amirhessam Tahmassebi", email = "admin@slickml.com" },
+]
 keywords = [
     "soccer",
+    "football",
     "betting",
     "screener",
     "livescore",
-    "football",
+    "backtesting",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -25,6 +28,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
     "Topic :: Games/Entertainment",
 ]
 
@@ -35,24 +40,65 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "assertpy>=1.1",
+    "mypy>=1.0.0",
+    "poethepoet>=0.24.0",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "assertpy>=1.1",
     "ruff>=0.1.0",
-    "mypy>=1.0.0",
     "types-requests>=2.28.0",
-    "poethepoet>=0.24.0",
+]
+docs = [
+    "sphinx>=5.3",
+    "sphinx-autoapi>=1.9",
+    "sphinx-design>=0.3",
+    "myst-parser>=0.18",
+    "furo>=2022.9",
+    "sphinxcontrib-mermaid>=0.9",
 ]
 
 [project.scripts]
 slickbet = "slickbet.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/slickbet/slickbet"
-Repository = "https://github.com/slickbet/slickbet"
+Homepage = "https://www.slickml.com"
+Repository = "https://github.com/slickml/slick-bet"
+Documentation = "https://www.docs.slickml.com/slick-bet/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/slickbet"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/assets",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+exclude = ["/.gitignore"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[dependency-groups]
+dev = [
+    "assertpy>=1.1",
+    "mypy>=1.0.0",
+    "poethepoet>=0.24.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "types-requests>=2.28.0",
+]
+docs = [
+    "sphinx>=5.3",
+    "sphinx-autoapi>=1.9",
+    "sphinx-design>=0.3",
+    "myst-parser>=0.18",
+    "furo>=2022.9",
+    "sphinxcontrib-mermaid>=0.9",
+]
 
 # ============================================================================
 # poethepoet - Task Runner
@@ -406,8 +452,12 @@ args = [
         "--weeks",
         "-w",
     ] },
-    { name = "cache_dir", default = "", options = ["--cache-dir"] },
-    { name = "cache_only", default = "", options = ["--cache-only"] },
+    { name = "cache_dir", default = "", options = [
+        "--cache-dir",
+    ] },
+    { name = "cache_only", default = "", options = [
+        "--cache-only",
+    ] },
 ]
 help = "Backtest on ALL major leagues with aggregated results. Use --cache-dir DIR and optionally --cache-only for API caching."
 
@@ -418,29 +468,53 @@ args = [
         "--weeks",
         "-w",
     ] },
-    { name = "cache_dir", default = "", options = ["--cache-dir"] },
-    { name = "cache_only", default = "", options = ["--cache-only"] },
+    { name = "cache_dir", default = "", options = [
+        "--cache-dir",
+    ] },
+    { name = "cache_only", default = "", options = [
+        "--cache-only",
+    ] },
 ]
 help = "Backtest on ALL Asia leagues (Saudi, Australia, Japan) with aggregated results. Use --cache-dir and --cache-only for API caching."
 
 [tool.poe.tasks.backtest-all-global]
 shell = "slickbet backtest-all --include-asia --include-americas --weeks ${weeks} ${debug:+--debug} ${cache_dir:+--cache-dir }${cache_dir} ${cache_only:+--cache-only}"
 args = [
-    { name = "weeks", default = "4", options = ["--weeks", "-w"] },
-    { name = "debug", default = "", options = ["--debug"] },
-    { name = "cache_dir", default = "", options = ["--cache-dir"] },
-    { name = "cache_only", default = "", options = ["--cache-only"] },
+    { name = "weeks", default = "4", options = [
+        "--weeks",
+        "-w",
+    ] },
+    { name = "debug", default = "", options = [
+        "--debug",
+    ] },
+    { name = "cache_dir", default = "", options = [
+        "--cache-dir",
+    ] },
+    { name = "cache_only", default = "", options = [
+        "--cache-only",
+    ] },
 ]
 help = "Backtest on ALL leagues. Use --cache-dir DIR and --cache-only=1 for offline cached runs."
 
 [tool.poe.tasks.tune]
 shell = "slickbet tune --cache-dir ${cache_dir} --weeks ${weeks} --trials ${trials} ${strategy:+--strategy }${strategy} ${metric:+--metric }${metric}"
 args = [
-    { name = "cache_dir", default = "data/12_weeks_cache", options = ["--cache-dir"] },
-    { name = "weeks", default = "12", options = ["--weeks", "-w"] },
-    { name = "trials", default = "20", options = ["--trials"] },
-    { name = "strategy", default = "random", options = ["--strategy"] },
-    { name = "metric", default = "accuracy_excl_draws", options = ["--metric"] },
+    { name = "cache_dir", default = "data/12_weeks_cache", options = [
+        "--cache-dir",
+    ] },
+    { name = "weeks", default = "12", options = [
+        "--weeks",
+        "-w",
+    ] },
+    { name = "trials", default = "20", options = [
+        "--trials",
+    ] },
+    { name = "strategy", default = "random", options = [
+        "--strategy",
+    ] },
+    { name = "metric", default = "accuracy_excl_draws", options = [
+        "--metric",
+    ] },
 ]
 help = "Hyperparameter tuning using cached data. Populate cache first: poe backtest-all-global --weeks 12 --cache-dir data/12_weeks_cache"
 
@@ -449,104 +523,85 @@ cmd = "slickbet backtest --json"
 help = "Backtest with JSON output"
 
 # Development tasks
+[tool.poe.tasks.greet]
+help = "Runtime user greetings"
+cmd = """
+echo "Welcome to slick-bet ♡♡♡ $USER ♡♡♡ ...\n\n\
+███████╗██╗     ██╗ ██████╗██╗  ██╗██████╗ ███████╗████████╗
+██╔════╝██║     ██║██╔════╝██║ ██╔╝██╔══██╗██╔════╝╚══██╔══╝
+███████╗██║     ██║██║     █████╔╝ ██████╔╝█████╗     ██║
+╚════██║██║     ██║██║     ██╔═██╗ ██╔══██╗██╔══╝     ██║
+███████║███████╗██║╚██████╗██║  ██╗██████╔╝███████╗   ██║
+╚══════╝╚══════╝╚═╝ ╚═════╝╚═╝  ╚═╝╚═════╝ ╚══════╝   ╚═╝\
+" """
+
+[tool.poe.tasks.clean]
+help = "Remove ignored caches, coverage, and build artifacts"
+cmd = """
+    rm -rf .coverage
+           .coverage.*
+           dist/
+           build/
+           .mypy_cache/
+           .pytest_cache/
+           .ruff_cache/
+           htmlcov/
+           xmlcov/
+           **/__pycache__/
+           **/.ipynb_checkpoints/
+    """
+
 [tool.poe.tasks.lint]
-cmd = "ruff check src/"
+cmd = "ruff check ."
 help = "Run linter on source code"
 
 [tool.poe.tasks.lint-fix]
-cmd = "ruff check src/ --fix"
+cmd = "ruff check . --fix"
 help = "Run linter and auto-fix issues"
 
 [tool.poe.tasks.format]
-cmd = "ruff format src/"
+cmd = "ruff format ."
 help = "Format source code"
 
-[tool.poe.tasks.format-check]
-cmd = "ruff format src/ --check"
-help = "Check code formatting without making changes"
+[tool.poe.tasks.mypy]
+cmd = "mypy"
+help = "Lint types via mypy"
 
-[tool.poe.tasks.typecheck]
-cmd = "mypy src/"
-help = "Run type checker"
+[tool.poe.tasks.sphinx]
+help = "Build API docs via sphinx"
+cmd = "sphinx-build -b html docs/ docs/_build"
 
 [tool.poe.tasks.test]
-cmd = "pytest"
-help = "Run tests"
+help = "Run unit-tests via pytest with 100% coverage gate"
+cmd = """
+    python -m pytest
+        --cov=slickbet
+        --cov-report=term-missing
+        --cov-report=html
+        --cov-report=xml
+        --cov-config=.coveragerc
+        --tb=short
+        -ra
+        -v
+    """
 
-[tool.poe.tasks.test-cov]
-cmd = "pytest --cov=slickbet --cov-report=term-missing"
-help = "Run tests with coverage report"
-
-# Combined tasks
 [tool.poe.tasks.check]
+help = "Check all linting steps"
 sequence = [
-    "lint",
-    "format-check",
-    "typecheck",
+    "greet",
+    { cmd = "poe format --check" },
+    { cmd = "ruff check ." },
+    { cmd = "poe mypy" },
 ]
-help = "Run all code quality checks"
 
 [tool.poe.tasks.fix]
 sequence = ["lint-fix", "format"]
 help = "Fix linting issues and format code"
 
+[tool.poe.tasks.build]
+help = "Build sdist and wheel via uv"
+cmd = "uv build"
+
 [tool.poe.tasks.dev]
 sequence = ["fix", "test"]
 help = "Fix code and run tests"
-
-# ============================================================================
-# Ruff - Linter & Formatter
-# ============================================================================
-[tool.ruff]
-line-length = 100
-target-version = "py310"
-src = ["src"]
-
-[tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "W",   # pycodestyle warnings
-    "UP",  # pyupgrade
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "SIM", # flake8-simplify
-]
-ignore = [
-    "E501", # line too long (handled by formatter)
-]
-
-[tool.ruff.lint.isort]
-known-first-party = ["slickbet"]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-
-# ============================================================================
-# MyPy - Type Checker
-# ============================================================================
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-mypy_path = "src"
-
-[[tool.mypy.overrides]]
-module = "requests.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "assertpy.*"
-ignore_missing_imports = true
-
-# ============================================================================
-# Pytest
-# ============================================================================
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-addopts = "-v"
