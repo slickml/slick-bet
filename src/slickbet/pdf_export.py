@@ -1,9 +1,14 @@
 """
-PDF export functionality for screener and backtest results.
+PDF export for screener and backtest reports.
+
+Builds printable A4 reports via ReportLab for screener predictions,
+single-competition backtests, and multi-league aggregated backtests.
+Output defaults to ``assets/predictions/`` unless a custom path is given.
 """
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -38,46 +43,45 @@ def get_pdf_output_path(filename: str, output_path: str | None = None) -> str:
     str
         Full path to the PDF file
     """
+    result: Path
     # Treat empty string as None to use default directory
     if output_path is None or output_path == "":
         # Use default directory: assets/predictions
         default_dir = Path("assets/predictions")
         default_dir.mkdir(parents=True, exist_ok=True)
-        output_path = default_dir / filename
+        result = default_dir / filename
     else:
         # Custom path provided
         custom_path = Path(output_path)
 
-        # If it's an absolute path, use it as-is
-        if custom_path.is_absolute():
-            output_path = custom_path
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-        # Check if it's an existing directory
-        elif custom_path.exists() and custom_path.is_dir():
-            # It's a directory, append filename
-            output_path = custom_path / filename
+        # Existing directory (absolute or relative) → append filename
+        if custom_path.exists() and custom_path.is_dir():
+            result = custom_path / filename
+        # Absolute file path
+        elif custom_path.is_absolute():
+            result = custom_path
+            result.parent.mkdir(parents=True, exist_ok=True)
         else:
             # It's a relative filename/path
             # Check if it has directory components (more than just a filename)
             if len(custom_path.parts) > 1:
                 # It has directory components, use as-is (relative to current dir)
-                output_path = custom_path
-                output_path.parent.mkdir(parents=True, exist_ok=True)
+                result = custom_path
+                result.parent.mkdir(parents=True, exist_ok=True)
             else:
                 # It's just a filename - put it in default directory
                 default_dir = Path("assets/predictions")
                 default_dir.mkdir(parents=True, exist_ok=True)
-                output_path = default_dir / custom_path.name
+                result = default_dir / custom_path.name
 
     # Ensure .pdf extension
-    output_path = Path(output_path)
-    if output_path.suffix.lower() != ".pdf":
-        output_path = output_path.with_suffix(".pdf")
+    if result.suffix.lower() != ".pdf":
+        result = result.with_suffix(".pdf")
 
     # Create parent directory if it doesn't exist
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    result.parent.mkdir(parents=True, exist_ok=True)
 
-    return str(output_path)
+    return str(result)
 
 
 def export_screener_to_pdf(
@@ -140,7 +144,7 @@ def export_screener_to_pdf(
     )
 
     # Title
-    story.append(Paragraph("🎰 SlickBet - Betting Screener Report", title_style))
+    story.append(Paragraph("⚽ SlickBet - Betting Screener Report", title_style))
     story.append(Spacer(1, 0.2 * inch))
 
     # Summary Section
@@ -453,7 +457,7 @@ def export_backtest_to_pdf(
 
     Parameters
     ----------
-    results : BacktestResult
+    results : BacktestResults
         The backtest results
     output_path : str or None, optional
         Optional output file path. If None, generates a filename.
@@ -695,8 +699,8 @@ def export_backtest_to_pdf(
 
 
 def export_backtest_all_to_pdf(
-    league_summaries: list[dict],
-    all_results: list,
+    league_summaries: list[dict[str, Any]],
+    all_results: list[Any],
     league_type: str,
     weeks: int,
     output_path: str | None = None,
@@ -794,13 +798,14 @@ def export_backtest_all_to_pdf(
     home_or_draw_correct = sum(1 for r in all_results if r.home_or_draw_correct)
     away_or_draw_correct = sum(1 for r in all_results if r.away_or_draw_correct)
     best_dc_correct = sum(1 for r in all_results if r.best_double_chance_correct)
+    denom = max(total_matches, 1)
 
     aggregated_data = [
         ["Metric", "Value"],
         ["Total Matches", str(total_matches)],
         ["Correct Predictions", str(correct)],
-        ["Overall Accuracy", f"{correct / total_matches:.1%}"],
-        ["Draws Encountered", f"{draws} ({draws / total_matches * 100:.1f}%)"],
+        ["Overall Accuracy", f"{correct / denom:.1%}"],
+        ["Draws Encountered", f"{draws} ({draws / denom * 100:.1f}%)"],
         [
             "Accuracy (excl. draws)",
             f"{sum(1 for r in non_draws if r.is_correct) / max(len(non_draws), 1):.1%}",
@@ -837,9 +842,9 @@ def export_backtest_all_to_pdf(
 
     dc_data = [
         ["Bet Type", "Accuracy"],
-        ["1X (Home or Draw)", f"{home_or_draw_correct / total_matches:.1%}"],
-        ["X2 (Away or Draw)", f"{away_or_draw_correct / total_matches:.1%}"],
-        ["Best Recommended DC", f"{best_dc_correct / total_matches:.1%}"],
+        ["1X (Home or Draw)", f"{home_or_draw_correct / denom:.1%}"],
+        ["X2 (Away or Draw)", f"{away_or_draw_correct / denom:.1%}"],
+        ["Best Recommended DC", f"{best_dc_correct / denom:.1%}"],
     ]
 
     dc_table = Table(dc_data, colWidths=[3 * inch, 2 * inch])

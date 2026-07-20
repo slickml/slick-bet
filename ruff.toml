@@ -1,0 +1,50 @@
+# https://docs.astral.sh/ruff/configuration/
+
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+extend-exclude = [".venv", "data", "docs/_build"]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B904",   # raise without from (API error wrapping)
+    "B905",   # zip without strict=
+    "C401",   # set() vs set comprehension
+    "F841",   # unused variable (legacy display vars)
+    "SIM103", # return condition directly
+    "SIM105", # try/except/pass vs contextlib.suppress
+    "SIM108", # ternary vs if-else (readability)
+    "SIM116", # dict vs if-elif for small enums
+    "SIM117", # nested with statements
+    "SIM118", # key in dict.keys()
+    "N806",   # constant-style locals in CLI league tables
+]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = [
+    "N802",
+    "N803",
+    "N806",
+    "B007",
+]
+
+[lint.isort]
+known-first-party = ["slickbet"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true

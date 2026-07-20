@@ -1,5 +1,8 @@
 """
 Livescore API client for fetching soccer matches and statistics.
+
+Provides dataclasses for teams, odds, fixtures, and historical matches, plus
+``LivescoreClient`` for authenticated requests with optional file-based caching.
 """
 
 import os
@@ -68,7 +71,19 @@ class MatchScores:
     penalties: str | None = None  # e.g., "5 - 4"
 
     def parse_score(self, score_str: str | None) -> tuple[int, int] | None:
-        """Parse score string to (home, away) tuple."""
+        """
+        Parse score string to (home, away) tuple.
+
+        Parameters
+        ----------
+        score_str : str or None
+            Score like ``"2 - 1"``.
+
+        Returns
+        -------
+        tuple[int, int] or None
+            ``(home, away)`` goals, or None if unparseable.
+        """
         if not score_str or not isinstance(score_str, str):
             return None
         try:
@@ -193,7 +208,19 @@ class MatchStatistics:
 
     @staticmethod
     def parse_stat(value: str | None) -> tuple[int, int] | None:
-        """Parse 'home:away' format to tuple."""
+        """
+        Parse ``home:away`` format to an integer tuple.
+
+        Parameters
+        ----------
+        value : str or None
+            Stat string like ``"48:52"``.
+
+        Returns
+        -------
+        tuple[int, int] or None
+            ``(home, away)`` values, or None if unparseable.
+        """
         if not value or not isinstance(value, str):
             return None
         try:
@@ -206,7 +233,19 @@ class MatchStatistics:
 
     @staticmethod
     def parse_float_stat(value: str | None) -> tuple[float, float] | None:
-        """Parse 'home:away' format to tuple of floats (for xG)."""
+        """
+        Parse ``home:away`` format to a float tuple (for xG).
+
+        Parameters
+        ----------
+        value : str or None
+            Stat string like ``"1.2:0.8"``.
+
+        Returns
+        -------
+        tuple[float, float] or None
+            ``(home, away)`` values, or None if unparseable.
+        """
         if not value or not isinstance(value, str):
             return None
         try:
@@ -536,15 +575,11 @@ class LivescoreClient:
                 "LIVESCORE_API_SECRET environment variables."
             )
 
-        self.cache: ApiCache | None = (
-            ApiCache(Path(cache_dir)) if cache_dir else None
-        )
+        self.cache: ApiCache | None = ApiCache(Path(cache_dir)) if cache_dir else None
         self.cache_only = bool(cache_only) and self.cache is not None
 
         self.session = requests.Session()
-        self.session.headers.update(
-            {"Accept": "application/json", "User-Agent": "SlickBet/1.0"}
-        )
+        self.session.headers.update({"Accept": "application/json", "User-Agent": "SlickBet/1.0"})
 
     def _make_request(self, endpoint: APIEndpoint | str, params: dict | None = None) -> dict:
         """
@@ -604,16 +639,30 @@ class LivescoreClient:
             if self.cache is not None:
                 self.cache.set(endpoint_str, params, data)
 
-            return data
+            return dict(data)
 
         except requests.exceptions.RequestException as e:
-            raise LivescoreAPIError(f"Request failed: {e}")
+            raise LivescoreAPIError(f"Request failed: {e}") from e
 
     def _safe_get_nested(self, data: dict, *keys: str, default: Any = None) -> Any:
         """
         Safely get nested values from a dictionary.
 
         Handles cases where intermediate values are not dicts.
+
+        Parameters
+        ----------
+        data : dict
+            Root dictionary.
+        *keys : str
+            Nested keys to traverse.
+        default : Any, optional
+            Value returned on missing key or non-dict intermediate.
+
+        Returns
+        -------
+        Any
+            Nested value or ``default``.
         """
         result = data
         for key in keys:
@@ -799,7 +848,7 @@ class LivescoreClient:
 
         data = self._make_request(APIEndpoint.COMPETITIONS_LIST, params=params)
 
-        competitions = []
+        competitions: list[dict[str, Any]] = []
         comp_list = self._safe_get_nested(data, "data", "competition", default=[])
 
         if not isinstance(comp_list, list):
@@ -830,7 +879,7 @@ class LivescoreClient:
         """
         data = self._make_request(APIEndpoint.COUNTRIES_LIST)
 
-        countries = []
+        countries: list[dict[str, Any]] = []
         country_list = self._safe_get_nested(data, "data", "country", default=[])
 
         if not isinstance(country_list, list):
@@ -866,7 +915,7 @@ class LivescoreClient:
             APIEndpoint.LEAGUES_TABLE, params={"competition_id": competition_id}
         )
 
-        standings = {}
+        standings: dict[str, int] = {}
         table = self._safe_get_nested(data, "data", "table", default=[])
 
         if not isinstance(table, list):
@@ -983,6 +1032,8 @@ class LivescoreClient:
             The team ID
         num_matches : int, optional
             Number of recent matches to analyze
+        verbose : bool, optional
+            Print debug info about match-statistics availability
 
         Returns
         -------
@@ -1191,10 +1242,7 @@ class LivescoreClient:
                             if match_stats.expected_goals:
                                 stats.total_expected_goals += match_stats.expected_goals[1]
                                 # Track opponent's xG (xGA - Expected Goals Against)
-                                if len(match_stats.expected_goals) > 0:
-                                    stats.total_expected_goals_against += (
-                                        match_stats.expected_goals[0]
-                                    )
+                                stats.total_expected_goals_against += match_stats.expected_goals[0]
                             # Accumulate card statistics for reliability
                             if match_stats.yellow_cards:
                                 stats.total_yellow_cards += match_stats.yellow_cards[1]
@@ -1285,8 +1333,7 @@ class LivescoreClient:
                 if total_shots > 0:
                     stats.shot_accuracy = stats.total_shots_on_target / total_shots
                 # Calculate average saves (defensive metric)
-                if stats.matches_with_stats > 0:
-                    stats.avg_saves = stats.total_saves / stats.matches_with_stats
+                stats.avg_saves = stats.total_saves / stats.matches_with_stats
                 # Calculate card averages
                 stats.avg_yellow_cards = stats.total_yellow_cards / stats.matches_with_stats
                 stats.avg_red_cards = stats.total_red_cards / stats.matches_with_stats
@@ -1510,7 +1557,7 @@ class LivescoreClient:
 
         data = self._make_request(APIEndpoint.MATCHES_HISTORY, params=params)
 
-        matches = []
+        matches: list[HistoricalMatch] = []
         match_list = self._safe_get_nested(data, "data", "match", default=[])
 
         if not isinstance(match_list, list):
@@ -1528,7 +1575,19 @@ class LivescoreClient:
         return matches
 
     def _parse_historical_match(self, data: dict) -> HistoricalMatch:
-        """Parse a historical match from the API response."""
+        """
+        Parse a historical match from the API response.
+
+        Parameters
+        ----------
+        data : dict
+            Raw match object from the history endpoint.
+
+        Returns
+        -------
+        HistoricalMatch
+            Parsed historical match.
+        """
         # Extract nested objects with type safety
         home_data = data.get("home") or {}
         if not isinstance(home_data, dict):
@@ -1635,7 +1694,7 @@ class LivescoreClient:
             List of HistoricalMatch objects (most recent first)
         """
         # Get enough pages to hopefully get limit matches
-        matches = []
+        matches: list[HistoricalMatch] = []
         page = 1
         max_pages = (limit // 30) + 2  # API returns max 30 per page
 
@@ -1655,25 +1714,22 @@ class LivescoreClient:
         """
         Parse a fixture from the API response into a Match object.
 
-        TODO(amir): refactor this; API may return two formats:
-        Format 1 (nested):
-        {
-            "id": 1712210,
-            "home": {"id": 864, "name": "Asteras Tripolis", ...},
-            "away": {"id": 1157, "name": "Lamia", ...},
-            ...
-        }
+        Supports nested (``home``/``away`` objects) and flat
+        (``home_id``/``home_name``) response formats.
 
-        Format 2 (flat):
-        {
-            "id": 1712210,
-            "home_id": 864,
-            "home_name": "Asteras Tripolis",
-            "away_id": 1157,
-            "away_name": "Lamia",
-            ...
-        }
+        Parameters
+        ----------
+        fixture : dict
+            Raw fixture object from the fixtures endpoint.
+
+        Returns
+        -------
+        Match
+            Parsed match (pre-match odds included when present).
         """
+        # TODO(amir): refactor this; API may return two formats:
+        # Format 1 (nested): home/away objects
+        # Format 2 (flat): home_id/home_name fields
         # Try nested format first
         home_data = fixture.get("home", {}) or {}
         away_data = fixture.get("away", {}) or {}

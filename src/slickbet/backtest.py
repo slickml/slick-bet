@@ -1,5 +1,9 @@
 """
-Backtesting module for evaluating prediction accuracy against historical data.
+Backtesting for evaluating prediction accuracy against historical data.
+
+Runs the betting model on past matches (simulating pre-match knowledge),
+compares predictions to actual outcomes, and reports win / double-chance
+accuracy metrics via ``BacktestResults`` and ``format_backtest_report``.
 """
 
 from dataclasses import dataclass, field
@@ -131,9 +135,7 @@ class BacktestResults:
     @property
     def high_confidence_accuracy_excl_draws(self) -> float:
         """Accuracy for high confidence predictions, excluding draws."""
-        high_conf = [
-            r for r in self.results if r.confidence > 0.3 and r.actual_outcome != "D"
-        ]
+        high_conf = [r for r in self.results if r.confidence > 0.3 and r.actual_outcome != "D"]
         if not high_conf:
             return 0.0
         return sum(1 for r in high_conf if r.is_correct) / len(high_conf)
@@ -167,9 +169,7 @@ class BacktestResults:
     @property
     def high_probability_accuracy_excl_draws(self) -> float:
         """Accuracy for high probability predictions (>60%), excluding draws."""
-        high_prob = [
-            r for r in self.results if r.probability > 0.60 and r.actual_outcome != "D"
-        ]
+        high_prob = [r for r in self.results if r.probability > 0.60 and r.actual_outcome != "D"]
         if not high_prob:
             return 0.0
         return sum(1 for r in high_prob if r.is_correct) / len(high_prob)
@@ -193,18 +193,14 @@ class BacktestResults:
         """Accuracy for 1X (Home or Draw) double chance bets."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.home_or_draw_correct) / len(
-            self.results
-        )
+        return sum(1 for r in self.results if r.home_or_draw_correct) / len(self.results)
 
     @property
     def away_or_draw_accuracy(self) -> float:
         """Accuracy for X2 (Away or Draw) double chance bets."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.away_or_draw_correct) / len(
-            self.results
-        )
+        return sum(1 for r in self.results if r.away_or_draw_correct) / len(self.results)
 
     @property
     def no_draw_accuracy(self) -> float:
@@ -218,12 +214,22 @@ class BacktestResults:
         """Accuracy when following the recommended double chance bet."""
         if not self.results:
             return 0.0
-        return sum(1 for r in self.results if r.best_double_chance_correct) / len(
-            self.results
-        )
+        return sum(1 for r in self.results if r.best_double_chance_correct) / len(self.results)
 
     def by_probability_threshold(self, threshold: float) -> "BacktestResults":
-        """Filter results by minimum probability threshold."""
+        """
+        Filter results by minimum probability threshold.
+
+        Parameters
+        ----------
+        threshold : float
+            Minimum prediction probability (inclusive).
+
+        Returns
+        -------
+        BacktestResults
+            New results object with filtered predictions.
+        """
         filtered = BacktestResults(
             results=[r for r in self.results if r.probability >= threshold],
             competition=self.competition,
@@ -345,9 +351,7 @@ class Backtester:
 
         # Filter to only finished matches with clear outcomes
         valid_matches = [
-            m
-            for m in matches
-            if m.status == "FINISHED" and m.outcomes.full_time in ("1", "X", "2")
+            m for m in matches if m.status == "FINISHED" and m.outcomes.full_time in ("1", "X", "2")
         ]
 
         if verbose:
@@ -459,7 +463,25 @@ class Backtester:
         to_date: datetime,
         verbose: bool = True,
     ) -> list[HistoricalMatch]:
-        """Fetch all historical matches, handling pagination."""
+        """
+        Fetch all historical matches, handling pagination.
+
+        Parameters
+        ----------
+        competition_id : str
+            Competition ID to fetch.
+        from_date : datetime
+            Start of date range.
+        to_date : datetime
+            End of date range.
+        verbose : bool, optional
+            Print page progress.
+
+        Returns
+        -------
+        list[HistoricalMatch]
+            Matches in the date range for the competition.
+        """
         all_matches = []
         page = 1
         max_pages = 20  # Safety limit
@@ -480,8 +502,7 @@ class Backtester:
                 matches = [
                     m
                     for m in matches
-                    if from_date <= m.date <= to_date
-                    and m.competition_id == competition_id
+                    if from_date <= m.date <= to_date and m.competition_id == competition_id
                 ]
 
                 all_matches.extend(matches)
@@ -498,7 +519,19 @@ class Backtester:
         return all_matches
 
     def _historical_to_match(self, hist: HistoricalMatch) -> Match:
-        """Convert a HistoricalMatch to a Match for prediction."""
+        """
+        Convert a HistoricalMatch to a Match for prediction.
+
+        Parameters
+        ----------
+        hist : HistoricalMatch
+            Completed historical match.
+
+        Returns
+        -------
+        Match
+            Pre-match style Match (status ``NS``, no scores).
+        """
         return Match(
             id=hist.id,
             home_team=hist.home_team,
@@ -528,6 +561,11 @@ class Backtester:
             Date of the match
         verbose : bool, optional
             Print debug information about statistics availability
+
+        Returns
+        -------
+        Match
+            Enriched match (form, standings, H2H, performance when available).
         """
         home_id = match.home_team.id if match.home_team else ""
         away_id = match.away_team.id if match.away_team else ""
@@ -539,10 +577,8 @@ class Backtester:
 
         try:
             # Get team forms (recent matches before this match)
-            if home_id:
-                match.home_form = self.client.get_team_form(home_id)
-            if away_id:
-                match.away_form = self.client.get_team_form(away_id)
+            match.home_form = self.client.get_team_form(home_id)
+            match.away_form = self.client.get_team_form(away_id)
         except Exception:
             # Catch all exceptions during form retrieval
             pass
@@ -559,9 +595,7 @@ class Backtester:
             pass
 
         try:
-            # Get H2H
-            if home_id and away_id:
-                match.head_to_head = self.client.get_head_to_head(home_id, away_id)
+            match.head_to_head = self.client.get_head_to_head(home_id, away_id)
         except Exception:
             # Catch all exceptions during H2H retrieval
             pass
@@ -569,26 +603,20 @@ class Backtester:
         try:
             # Get detailed performance stats (goals, clean sheets, etc.)
             # This includes match statistics (xG, shots, possession, etc.)
-            if home_id:
-                match.home_performance = self.client.get_team_performance_stats(
-                    home_id, num_matches=10, verbose=verbose
-                )
-            if away_id:
-                match.away_performance = self.client.get_team_performance_stats(
-                    away_id, num_matches=10, verbose=verbose
-                )
+            match.home_performance = self.client.get_team_performance_stats(
+                home_id, num_matches=10, verbose=verbose
+            )
+            match.away_performance = self.client.get_team_performance_stats(
+                away_id, num_matches=10, verbose=verbose
+            )
 
             # Debug: Check if match statistics are available
             if verbose:
                 home_stats = (
-                    match.home_performance.matches_with_stats
-                    if match.home_performance
-                    else 0
+                    match.home_performance.matches_with_stats if match.home_performance else 0
                 )
                 away_stats = (
-                    match.away_performance.matches_with_stats
-                    if match.away_performance
-                    else 0
+                    match.away_performance.matches_with_stats if match.away_performance else 0
                 )
                 if home_stats == 0 or away_stats == 0:
                     print(
@@ -728,7 +756,19 @@ class Backtester:
 
 
 def format_backtest_report(results: BacktestResults) -> str:
-    """Generate a formatted report of backtest results."""
+    """
+    Generate a formatted report of backtest results.
+
+    Parameters
+    ----------
+    results : BacktestResults
+        Aggregated backtest results.
+
+    Returns
+    -------
+    str
+        Multi-line human-readable report.
+    """
     total = results.total_predictions
 
     # Handle empty results

@@ -4,11 +4,14 @@ Hyperparameter tuning for the betting model.
 Uses cached API data to run backtests across different weight configurations
 and find the best parameters. No API calls during tuning.
 
-Usage:
-    1. Populate cache:
-       slickbet backtest-all --weeks 12 --cache-dir data/12_weeks_cache
-    2. Run tuning:
-       slickbet tune --cache-dir data/12_weeks_cache --trials 20
+Examples
+--------
+>>> # 1. Populate cache:
+>>> #    slickbet backtest-all --weeks 12 --cache-dir data/12_weeks_cache
+>>> # 2. Run tuning:
+>>> #    slickbet tune --cache-dir data/12_weeks_cache --trials 20
+>>> from slickbet.tune import tune
+>>> best = tune(cache_dir="data/12_weeks_cache", weeks=12, trials=20)
 """
 
 import random
@@ -19,7 +22,6 @@ from typing import Any
 from slickbet.api import LivescoreClient
 from slickbet.backtest import Backtester, BacktestResults
 from slickbet.model import BettingModel
-
 
 # Same league sets as backtest-all with --include-asia --include-americas
 MAJOR_LEAGUES = [
@@ -54,7 +56,24 @@ ALL_LEAGUES = MAJOR_LEAGUES + MINOR_LEAGUES + ASIA_LEAGUES + AMERICAS_LEAGUES
 
 @dataclass
 class TuneResult:
-    """Result of a single tuning trial."""
+    """
+    Result of a single tuning trial.
+
+    Attributes
+    ----------
+    weights : dict[str, float]
+        Factor weights used for this trial (sum to 1.0).
+    accuracy : float
+        Overall win-prediction accuracy (0-1).
+    accuracy_excl_draws : float
+        Accuracy excluding matches that ended in a draw.
+    best_dc_accuracy : float
+        Accuracy of the recommended double-chance bet.
+    total_matches : int
+        Number of predictions evaluated.
+    correct : int
+        Number of correct win predictions.
+    """
 
     weights: dict[str, float]
     accuracy: float
@@ -67,8 +86,17 @@ class TuneResult:
 def _random_weights() -> dict[str, float]:
     """Generate random weights that sum to 1.0."""
     names = [
-        "form", "position", "home", "h2h", "odds", "goals",
-        "venue_form", "defense", "momentum", "match_stats", "xg",
+        "form",
+        "position",
+        "home",
+        "h2h",
+        "odds",
+        "goals",
+        "venue_form",
+        "defense",
+        "momentum",
+        "match_stats",
+        "xg",
         "reliability",
     ]
     raw = [random.uniform(0.02, 0.25) for _ in names]
@@ -79,9 +107,17 @@ def _random_weights() -> dict[str, float]:
 def _grid_near_default() -> dict[str, float]:
     """Weights near defaults with small random perturbations."""
     base = {
-        "form": 0.15, "position": 0.19, "home": 0.09, "h2h": 0.07,
-        "odds": 0.17, "goals": 0.11, "venue_form": 0.06, "defense": 0.05,
-        "momentum": 0.06, "match_stats": 0.05, "xg": 0.05,
+        "form": 0.15,
+        "position": 0.19,
+        "home": 0.09,
+        "h2h": 0.07,
+        "odds": 0.17,
+        "goals": 0.11,
+        "venue_form": 0.06,
+        "defense": 0.05,
+        "momentum": 0.06,
+        "match_stats": 0.05,
+        "xg": 0.05,
         "reliability": 0.04,
     }
     scale = 0.15
@@ -99,7 +135,21 @@ def run_backtest_with_weights(
     """
     Run backtest-all-global with given weights using cached data.
 
-    Returns aggregated BacktestResults or None if no matches.
+    Parameters
+    ----------
+    cache_dir : str or Path
+        Directory with cached API data.
+    weeks : int
+        Weeks of history (must match what was cached).
+    weights : dict[str, float]
+        Factor name → weight mapping for BettingModel.
+    min_probability : float, optional
+        Minimum prediction probability to include.
+
+    Returns
+    -------
+    BacktestResults or None
+        Aggregated results, or None if no matches.
     """
     client = LivescoreClient(cache_dir=cache_dir, cache_only=True)
     model = BettingModel(
@@ -215,22 +265,32 @@ def tune(
 
         if verbose:
             val = getattr(r, attr)
-            print(
-                f"   Trial {i + 1}/{trials}: {metric}={val:.1%} "
-                f"({r.correct}/{r.total_matches})"
-            )
+            print(f"   Trial {i + 1}/{trials}: {metric}={val:.1%} ({r.correct}/{r.total_matches})")
 
     if not results:
         return None
 
     def _key(r: TuneResult) -> float:
-        return getattr(r, attr)
+        """Return the optimization metric for ranking trials."""
+        return float(getattr(r, attr))
 
     best = max(results, key=_key)
     return best
 
 
 def format_best_weights(weights: dict[str, float]) -> str:
-    """Format weights for copying into BettingModel."""
+    """
+    Format weights for copying into BettingModel.
+
+    Parameters
+    ----------
+    weights : dict[str, float]
+        Factor name → weight mapping.
+
+    Returns
+    -------
+    str
+        Indented ``"name": value,`` lines sorted by name.
+    """
     lines = [f'        "{k}": {v:.4f},' for k, v in sorted(weights.items())]
     return "\n".join(lines)
